@@ -1,0 +1,190 @@
+<%- include('../partials/header') %>
+
+<div class="admin-layout">
+  <%- include('../partials/sidebar', { currentPage: 'dashboard' }) %>
+
+  <div class="admin-main">
+    <!-- Top Bar -->
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <h2 class="topbar-title"><i class="fas fa-tachometer-alt"></i> Dashboard</h2>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-date"><i class="fas fa-calendar"></i> <%= new Date().toLocaleDateString('en-IN', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) %></span>
+        <span class="topbar-user"><i class="fas fa-user-circle"></i> <%= adminName || 'Admin' %></span>
+      </div>
+    </div>
+
+
+    <!-- College Banner with Logo -->
+    <div class="admin-college-banner">
+      <img src="/images/logo.png" alt="Panimalar Engineering College"
+           class="admin-banner-logo"
+           onerror="this.style.display='none';">
+      <div class="admin-banner-text">
+        <div class="admin-banner-name">PANIMALAR ENGINEERING COLLEGE</div>
+        <div class="admin-banner-sub">(Autonomous Institution) &nbsp;|&nbsp; Dept. of Artificial Intelligence & Data Science</div>
+      </div>
+    </div>
+    <div class="admin-content">
+      <!-- Alerts -->
+      <% if (error && error.length > 0) { %>
+        <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%= error[0] %></div>
+      <% } %>
+      <% if (success && success.length > 0) { %>
+        <div class="alert alert-success"><i class="fas fa-check-circle"></i> <%= success[0] %></div>
+      <% } %>
+
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card stat-blue">
+          <div class="stat-icon"><i class="fas fa-users"></i></div>
+          <div class="stat-info">
+            <div class="stat-number"><%= stats.totalStudents %></div>
+            <div class="stat-label">Total Students</div>
+          </div>
+        </div>
+        <div class="stat-card stat-green">
+          <div class="stat-icon"><i class="fas fa-chair"></i></div>
+          <div class="stat-info">
+            <div class="stat-number"><%= stats.totalSeating %></div>
+            <div class="stat-label">Seating Rows</div>
+          </div>
+        </div>
+        <div class="stat-card stat-orange">
+          <div class="stat-icon"><i class="fas fa-graduation-cap"></i></div>
+          <div class="stat-info">
+            <div class="stat-number"><%= stats.yearII %></div>
+            <div class="stat-label">II Year Students</div>
+          </div>
+        </div>
+        <div class="stat-card stat-purple">
+          <div class="stat-icon"><i class="fas fa-graduation-cap"></i></div>
+          <div class="stat-info">
+            <div class="stat-number"><%= stats.yearIII %></div>
+            <div class="stat-label">III Year Students</div>
+          </div>
+        </div>
+        <div class="stat-card stat-maroon">
+          <div class="stat-icon"><i class="fas fa-graduation-cap"></i></div>
+          <div class="stat-info">
+            <div class="stat-number"><%= stats.yearIV %></div>
+            <div class="stat-label">IV Year Students</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions + Recent -->
+      <div class="dashboard-grid">
+        <!-- Quick Actions -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+          </div>
+          <div class="quick-actions">
+            <a href="/admin/upload" class="qa-btn qa-blue">
+              <i class="fas fa-upload"></i>
+              <span>Upload Dataset</span>
+            </a>
+            <a href="/admin/students" class="qa-btn qa-green">
+              <i class="fas fa-users"></i>
+              <span>View Students</span>
+            </a>
+            <a href="/admin/seating" class="qa-btn qa-orange">
+              <i class="fas fa-chair"></i>
+              <span>Manage Seating</span>
+            </a>
+            <a href="/seating/export/public/II" class="qa-btn qa-red">
+              <i class="fas fa-file-pdf"></i>
+              <span>Export II Year PDF</span>
+            </a>
+            <a href="/seating/export/public/III" class="qa-btn qa-red">
+              <i class="fas fa-file-pdf"></i>
+              <span>Export III Year PDF</span>
+            </a>
+            <a href="/seating/export/public/IV" class="qa-btn qa-red">
+              <i class="fas fa-file-pdf"></i>
+              <span>Export IV Year PDF</span>
+            </a>
+            <a href="/seating/view/II" target="_blank" class="qa-btn qa-purple">
+              <i class="fas fa-eye"></i>
+              <span>View II Year</span>
+            </a>
+            <a href="/seating/view/III" target="_blank" class="qa-btn qa-purple">
+              <i class="fas fa-eye"></i>
+              <span>View III Year</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Recent Seating -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3><i class="fas fa-clock"></i> Recent Seating Records</h3>
+            <a href="/admin/seating" class="view-all">View All</a>
+          </div>
+          <% if (recentSeating.length === 0) { %>
+            <div class="empty-mini">
+              <i class="fas fa-info-circle"></i> No seating records yet.
+              <a href="/admin/seating">Generate now →</a>
+            </div>
+          <% } else { %>
+          <table class="mini-table">
+            <thead>
+              <tr><th>Year/Sec</th><th>Range</th><th>Count</th></tr>
+            </thead>
+            <tbody>
+              <% recentSeating.forEach(s => { %>
+              <tr>
+                <td><span class="badge-year"><%= s.year %> <%= s.section %></span></td>
+                <td class="range-mini"><%= s.startRegister %> – <%= s.endRegister %></td>
+                <td><strong><%= s.totalStudents %></strong></td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Year Summary -->
+      <div class="dash-card" style="margin-top:1.5rem;">
+        <div class="dash-card-header">
+          <h3><i class="fas fa-chart-bar"></i> Year-wise Summary</h3>
+        </div>
+        <div class="year-summary-grid">
+          <div class="ys-card ys-blue">
+            <div class="ys-year">II Year</div>
+            <div class="ys-count"><%= stats.yearII %> students</div>
+            <div class="ys-actions">
+              <a href="/seating/view/II" target="_blank">View</a>
+              <a href="/admin/seating?year=II">Manage</a>
+              <a href="/seating/export/public/II">PDF</a>
+            </div>
+          </div>
+          <div class="ys-card ys-green">
+            <div class="ys-year">III Year</div>
+            <div class="ys-count"><%= stats.yearIII %> students</div>
+            <div class="ys-actions">
+              <a href="/seating/view/III" target="_blank">View</a>
+              <a href="/admin/seating?year=III">Manage</a>
+              <a href="/seating/export/public/III">PDF</a>
+            </div>
+          </div>
+          <div class="ys-card ys-maroon">
+            <div class="ys-year">IV Year</div>
+            <div class="ys-count"><%= stats.yearIV %> students</div>
+            <div class="ys-actions">
+              <a href="/seating/view/IV" target="_blank">View</a>
+              <a href="/admin/seating?year=IV">Manage</a>
+              <a href="/seating/export/public/IV">PDF</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

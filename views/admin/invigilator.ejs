@@ -1,0 +1,496 @@
+<%- include('../partials/header') %>
+<div class="admin-layout">
+  <%- include('../partials/sidebar', { currentPage: 'invigilator' }) %>
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <h2 class="topbar-title"><i class="fas fa-user-tie"></i> Invigilator Allocation System</h2>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-date"><i class="fas fa-calendar"></i> <%= new Date().toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}) %></span>
+        <span class="topbar-user"><i class="fas fa-user-circle"></i> <%= adminName %></span>
+      </div>
+    </div>
+
+    <!-- College Banner -->
+    <div class="admin-college-banner">
+      <img src="/images/logo.png" alt="PEC" class="admin-banner-logo" onerror="this.style.display='none';">
+      <div class="admin-banner-text">
+        <div class="admin-banner-name">PANIMALAR ENGINEERING COLLEGE</div>
+        <div class="admin-banner-sub">(Autonomous Institution) &nbsp;·&nbsp; Dept. of AI &amp; Data Science</div>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <% if(error&&error.length){%><div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%=error[0]%></div><%}%>
+      <% if(success&&success.length){%><div class="alert alert-success"><i class="fas fa-check-circle"></i> <%=success[0]%></div><%}%>
+
+      <div class="invig-layout">
+
+        <!-- ═══ LEFT: Setup ═══ -->
+        <div class="invig-left">
+
+          <!-- Step 1: Exam Details -->
+          <div class="dash-card" style="margin-bottom:1rem;">
+            <div class="dash-card-header"><h3><i class="fas fa-info-circle"></i> Exam Details</h3></div>
+            <div class="form-group">
+              <label>Subject Name <span class="req">*</span></label>
+              <input type="text" id="subjectInput" class="form-input"
+                     placeholder="e.g. Data Exploration & Visualization"
+                     list="subjectList" oninput="onSubjectType()">
+              <datalist id="subjectList">
+                <% subjects.forEach(s=>{%><option value="<%=s%>"><%})%>
+              </datalist>
+              <small>Subject staff are excluded · lab incharges always available</small>
+            </div>
+            <div class="form-group">
+              <label>Exam Name <span class="req">*</span></label>
+              <input type="text" id="examNameInput" class="form-input" placeholder="e.g. Internal Assessment I">
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:1;">
+                <label>Exam Date <span class="req">*</span></label>
+                <input type="date" id="examDateInput" class="form-input" value="<%=new Date().toISOString().split('T')[0]%>">
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label>Session <span class="req">*</span></label>
+                <select id="sessionInput" class="form-select">
+                  <option value="FN">FN — 8:15 AM – 11:15 AM</option>
+                  <option value="AN">AN — 12:15 PM – 3:15 PM</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn-primary" style="width:100%;" onclick="analyseStaff()">
+              <i class="fas fa-search"></i> Find Eligible Staff
+            </button>
+            <div id="analyseSpinner" style="display:none;text-align:center;padding:1rem;">
+              <i class="fas fa-spinner fa-spin fa-2x" style="color:#0d1b4b;"></i>
+              <p style="font-size:0.85rem;color:#555;margin-top:0.5rem;">Analysing staff dataset…</p>
+            </div>
+          </div>
+
+          <!-- Excluded Staff Panel -->
+          <div id="excludedCard" style="display:none;margin-bottom:1rem;">
+            <div class="dash-card" style="border-left:4px solid #c62828;">
+              <div class="dash-card-header" style="margin-bottom:0.75rem;">
+                <h3 style="color:#c62828;"><i class="fas fa-ban"></i> Excluded — Subject Teachers</h3>
+                <span id="excludedCount" class="badge-year" style="background:#c62828;"></span>
+              </div>
+              <div id="excludedList" style="font-size:0.84rem;"></div>
+            </div>
+          </div>
+
+          <!-- Legend -->
+          <div id="legendCard" style="display:none;margin-bottom:1rem;">
+            <div class="dash-card" style="padding:0.75rem 1rem;">
+              <div style="font-size:0.78rem;color:#555;display:flex;gap:1rem;flex-wrap:wrap;">
+                <span><span style="color:#2e7d32;font-weight:700;">●</span> Available — eligible staff</span>
+                <span><span style="color:#1565c0;font-weight:700;">●</span> Lab Incharge — always available</span>
+                <span><span style="color:#c62828;font-weight:700;">●</span> Excluded — handles this subject</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ RIGHT: Eligible List + Allocation Table ═══ -->
+        <div class="invig-right">
+
+          <!-- Eligible Staff Full List -->
+          <div class="dash-card" id="eligibleCard" style="display:none;margin-bottom:1.25rem;">
+            <div class="dash-card-header">
+              <h3><i class="fas fa-list-ul"></i> All Eligible Staff</h3>
+              <div style="display:flex;gap:0.5rem;align-items:center;">
+                <span id="eligibleCount" class="badge-year" style="background:#2e7d32;"></span>
+                <input type="text" id="eligibleSearch" class="form-input" style="width:180px;"
+                       placeholder="Filter by name…" oninput="filterEligibleList()">
+              </div>
+            </div>
+            <div class="duty-legend-bar">
+            <span class="duty-leg duty-green">0–3 days — OK</span>
+            <span class="duty-leg duty-orange">4–5 days — Approaching limit</span>
+            <span class="duty-leg duty-red">6/6 days — Limit reached</span>
+            <span style="color:#888;font-size:0.78rem;margin-left:auto;">Exam period: last 60 days &nbsp;|&nbsp; Max: 6 days per staff</span>
+          </div>
+          <div id="eligibleTableWrap" class="table-wrapper">
+              <table class="data-table" id="eligibleTable">
+                <thead>
+                  <tr><th>#</th><th>Staff Name</th><th>Designation</th><th>Subject Handled</th><th>Duty Used</th><th>Status</th><th>Add</th></tr>
+                </thead>
+                <tbody id="eligibleTbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Allocation Table -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3><i class="fas fa-table"></i> Invigilator Allocation Table</h3>
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                <button class="btn-primary btn-sm" onclick="saveAllocation()"><i class="fas fa-save"></i> Save</button>
+                <button class="btn-secondary btn-sm" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> Download PDF</button>
+              </div>
+            </div>
+
+            <div id="emptyAllocMsg" style="padding:3rem;text-align:center;color:#aaa;">
+              <i class="fas fa-user-tie" style="font-size:3rem;display:block;margin-bottom:1rem;"></i>
+              <p>Search a subject above · click <strong>+</strong> next to any eligible staff to add them here.</p>
+            </div>
+
+            <div id="allocTableWrap" style="display:none;">
+              <div style="padding:0.6rem 1rem;background:#f9faff;border-bottom:1px solid #e0e3ef;font-size:0.8rem;color:#555;">
+                <i class="fas fa-edit"></i> Edit Hall No &amp; Session inline · click <i class="fas fa-trash" style="color:#c62828;"></i> to remove
+                &nbsp;|&nbsp; <strong id="allocCount">0 staff</strong>
+              </div>
+              <div class="table-wrapper">
+                <table class="data-table" id="allocTable">
+                  <thead>
+                    <tr><th>#</th><th>Staff Name</th><th>Designation</th><th>Hall No</th><th>Exam</th><th>Date</th><th>Session</th><th>Signature</th><th>Remove</th></tr>
+                  </thead>
+                  <tbody id="allocTbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Past Allocations -->
+          <div class="dash-card" style="margin-top:1.25rem;">
+            <div class="dash-card-header">
+              <h3><i class="fas fa-history"></i> Past Allocations</h3>
+              <span class="badge-year" style="background:#888;"><%=allocations.length%></span>
+            </div>
+            <% if(!allocations.length){ %>
+              <div class="empty-mini" style="padding:2rem;text-align:center;">No saved allocations yet.</div>
+            <% } else { %>
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead><tr><th>#</th><th>Exam</th><th>Subject</th><th>Date</th><th>Ses</th><th>Staff</th><th>Actions</th></tr></thead>
+                <tbody>
+                  <% allocations.forEach((a,i)=>{ %>
+                  <tr>
+                    <td><%=i+1%></td>
+                    <td><strong><%=a.examName%></strong></td>
+                    <td><small style="color:#555;"><%=a.subjectName%></small></td>
+                    <td><%=new Date(a.examDate).toLocaleDateString('en-IN')%></td>
+                    <td><span class="badge-year" style="background:<%=a.session==='FN'?'#1565c0':'#6a1b9a'%>"><%=a.session%></span></td>
+                    <td><strong><%=a.allocations.length%></strong></td>
+                    <td style="white-space:nowrap;">
+                      <a href="/admin/invigilator/view/<%=a._id%>" class="btn-icon btn-icon--blue" title="View"><i class="fas fa-eye"></i></a>
+                      <a href="/admin/invigilator/download/<%=a._id%>" class="btn-icon" style="background:#fdecea;color:#c62828;" title="Download PDF"><i class="fas fa-file-pdf"></i></a>
+                      <form action="/admin/invigilator/delete/<%=a._id%>" method="POST" onsubmit="return confirm('Delete this allocation?')" style="display:inline;">
+                        <button type="submit" class="btn-icon btn-icon--red"><i class="fas fa-trash"></i></button>
+                      </form>
+                    </td>
+                  </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let allEligible  = [];   // full eligible list from API
+let allRows      = [];   // allocation table rows
+let currentSavedId = null;
+
+// ── Debounced subject typing ──────────────────────────────────────────────
+let debTimer;
+function onSubjectType() {
+  clearTimeout(debTimer);
+  debTimer = setTimeout(() => {
+    const v = document.getElementById('subjectInput').value.trim();
+    if (v.length >= 3) analyseStaff();
+  }, 600);
+}
+
+// ── Analyse staff ─────────────────────────────────────────────────────────
+async function analyseStaff() {
+  const subject = document.getElementById('subjectInput').value.trim();
+  if (!subject) { alert('Please enter a subject name.'); return; }
+  showSpinner(true);
+  document.getElementById('excludedCard').style.display = 'none';
+  document.getElementById('eligibleCard').style.display = 'none';
+  document.getElementById('legendCard').style.display   = 'none';
+
+  try {
+    const resp = await fetch('/admin/invigilator/eligible?subject=' + encodeURIComponent(subject));
+    const data = await resp.json();
+    showSpinner(false);
+    if (!data.success) { toast('❌ ' + data.message, 'err'); return; }
+
+    allEligible = data.eligible;
+
+    // Excluded panel
+    renderExcluded(data.excluded);
+    // Eligible table
+    renderEligibleTable(allEligible);
+
+    document.getElementById('legendCard').style.display = '';
+  } catch(e) {
+    showSpinner(false);
+    toast('❌ ' + e.message, 'err');
+  }
+}
+
+function showSpinner(show) {
+  document.getElementById('analyseSpinner').style.display = show ? '' : 'none';
+}
+
+// ── Render excluded ───────────────────────────────────────────────────────
+function renderExcluded(list) {
+  const card = document.getElementById('excludedCard');
+  const div  = document.getElementById('excludedList');
+  document.getElementById('excludedCount').textContent = list.length + ' excluded';
+  if (!list.length) {
+    div.innerHTML = '<p style="color:#888;">No staff handle this subject specifically.</p>';
+  } else {
+    div.innerHTML = list.map(s =>
+      `<div class="invig-excluded-row">
+        <span class="invig-x-icon"><i class="fas fa-times-circle"></i></span>
+        <div>
+          <strong>${s.name}</strong>
+          <span class="invig-tag">${s.designation}</span>
+          <br><small style="color:#c62828;">${s.subject}</small>
+        </div>
+      </div>`
+    ).join('');
+  }
+  card.style.display = '';
+}
+
+// ── Render full eligible table ────────────────────────────────────────────
+function renderEligibleTable(list) {
+  const tbody = document.getElementById('eligibleTbody');
+  document.getElementById('eligibleCount').textContent = list.length + ' eligible';
+  const alreadyAdded = new Set(allRows.map(r => r.staffName));
+  const maxDays = 6;
+
+  tbody.innerHTML = list.map((s, i) => {
+    const isLab    = !s.subject || s.subject.trim() === '';
+    const added    = alreadyAdded.has(s.name);
+    const used     = s.daysUsed || 0;
+    const atLimit  = used >= maxDays;
+    const lastDate = s.lastDate || null;
+
+    // Duty bar colour
+    const dutyClr  = atLimit ? '#c62828' : used >= 4 ? '#e65100' : '#2e7d32';
+    const dutyBg   = atLimit ? '#fdecea' : used >= 4 ? '#fff3e0' : '#e8f5e9';
+    const dutyTxt  = `${used}/${maxDays}`;
+
+    // Row background warning
+    const rowStyle = atLimit ? 'background:#fff5f5;' : used >= 4 ? 'background:#fffde7;' : '';
+
+    const lastInfo = lastDate ? `<br><small style="color:#e65100;font-size:0.7rem;">Last: ${lastDate}</small>` : '';
+
+    return `<tr id="erow-${i}" style="${rowStyle}${added ? 'opacity:0.5;' : ''}">
+      <td style="color:#888;">${i+1}</td>
+      <td>
+        <strong>${s.name}</strong>${lastInfo}
+      </td>
+      <td><small>${s.designation}</small></td>
+      <td><small style="color:${isLab?'#1565c0':'#555'};">${isLab ? '<em>Lab Incharge</em>' : s.subject}</small></td>
+      <td>
+        <span style="background:${dutyBg};color:${dutyClr};padding:0.2rem 0.5rem;border-radius:4px;font-weight:800;font-size:0.8rem;">
+          ${dutyTxt}
+        </span>
+      </td>
+      <td>
+        <span class="invig-tag" style="background:${atLimit?'#fdecea':isLab?'#e3f2fd':'#e8f5e9'};color:${atLimit?'#c62828':isLab?'#1565c0':'#2e7d32'};">
+          ${atLimit ? '⚠ Limit Reached' : isLab ? 'Lab Incharge' : 'Available'}
+        </span>
+      </td>
+      <td>
+        <button class="btn-icon ${atLimit ? 'btn-icon--red' : 'btn-icon--green'}" title="${atLimit ? 'Limit reached — click to override' : 'Add to allocation'}"
+                ${added ? 'disabled style="opacity:0.4;"' : ''}
+                onclick="addRow('${esc(s.name)}','${esc(s.designation)}','${esc(s.subject||'')}',${i},${used},${atLimit},'${lastDate||''}')">
+          <i class="fas fa-${atLimit ? 'exclamation-triangle' : 'plus'}"></i>
+        </button>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:2rem;">No eligible staff found.</td></tr>';
+
+  document.getElementById('eligibleCard').style.display = '';
+}
+
+// ── Filter eligible table by search ──────────────────────────────────────
+function filterEligibleList() {
+  const q = document.getElementById('eligibleSearch').value.toLowerCase();
+  const rows = document.querySelectorAll('#eligibleTbody tr');
+  rows.forEach(row => {
+    row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none';
+  });
+}
+
+// ── Add row to allocation table ───────────────────────────────────────────
+async function addRow(name, desig, subj, eligIdx, daysUsed, atLimit, lastDate) {
+  if (allRows.find(r => r.staffName === name)) { toast('Already in allocation table.', 'err'); return; }
+
+  const examDate = document.getElementById('examDateInput').value;
+  const session  = document.getElementById('sessionInput').value;
+
+  // Real-time duty check via API
+  let dutyInfo = { daysUsed: daysUsed||0, atLimit: atLimit||false, assignedToday: false, dates: [] };
+  try {
+    const r = await fetch(`/admin/invigilator/duty-check?name=${encodeURIComponent(name)}&examDate=${examDate}`);
+    const d = await r.json();
+    if (d.success) dutyInfo = d;
+  } catch(e) {}
+
+  // Check if assigned on the same date
+  if (dutyInfo.assignedToday) {
+    const go = confirm(
+      `⚠️  DUPLICATE DATE ALERT
+
+` +
+      `"${name}" is already assigned as invigilator on this same exam date (${new Date(examDate).toLocaleDateString('en-IN')}).
+
+` +
+      `Do you still want to add them again?`
+    );
+    if (!go) return;
+  }
+
+  // Check if at 6-day limit
+  if (dutyInfo.atLimit) {
+    const go = confirm(
+      `⚠️  DUTY LIMIT REACHED
+
+` +
+      `"${name}" has already been assigned for ${dutyInfo.daysUsed} days of invigilation in the current exam period (max ${dutyInfo.maxDays} days).
+
+` +
+      `Previous dates: ${(dutyInfo.dates||[]).join(', ')}
+
+` +
+      `Do you still want to assign them?`
+    );
+    if (!go) return;
+  } else if (dutyInfo.daysUsed >= 4) {
+    // Soft warning at 4+ days (approaching limit)
+    toast(`⚠️  Note: ${name} has ${dutyInfo.daysUsed}/${dutyInfo.maxDays} days used. Approaching limit.`, 'warn');
+  }
+
+  // Check yesterday assignment (non-blocking info)
+  if (!dutyInfo.assignedToday && dutyInfo.dates && dutyInfo.dates.length > 0) {
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+    const ydStr = yesterday.toLocaleDateString('en-IN');
+    if (dutyInfo.dates.includes(ydStr)) {
+      toast(`ℹ️  ${name} was assigned yesterday (${ydStr}). Day ${dutyInfo.daysUsed+1}/${dutyInfo.maxDays}.`, 'warn');
+    }
+  }
+
+  allRows.push({ staffName:name, designation:desig, subject:subj, hallNumber:'', session, daysUsed: dutyInfo.daysUsed });
+  renderAllocTable();
+  const erow = document.getElementById('erow-'+eligIdx);
+  if (erow) { erow.style.opacity='0.4'; erow.querySelector('button').disabled=true; }
+  if (!dutyInfo.atLimit && !dutyInfo.assignedToday) toast(`✅ ${name} added (${dutyInfo.daysUsed+1}/${dutyInfo.maxDays} days).`, 'ok');
+}
+
+// ── Render allocation table ───────────────────────────────────────────────
+function renderAllocTable() {
+  const examName = document.getElementById('examNameInput').value.trim() || '—';
+  const examDate = document.getElementById('examDateInput').value;
+  const dateDisp = examDate ? new Date(examDate).toLocaleDateString('en-IN') : '—';
+
+  document.getElementById('allocCount').textContent = allRows.length + ' staff';
+  document.getElementById('emptyAllocMsg').style.display  = allRows.length ? 'none' : '';
+  document.getElementById('allocTableWrap').style.display = allRows.length ? ''     : 'none';
+
+  document.getElementById('allocTbody').innerHTML = allRows.map((r, i) =>
+    `<tr>
+      <td style="color:#888;">${i+1}</td>
+      <td><strong>${r.staffName}</strong><br><small style="color:#888;">${r.designation}</small>${r.daysUsed!==undefined?`<br><small style="color:#e65100;font-size:0.72rem;">Duty: ${r.daysUsed+1}/${6} days</small>`:''}</td>
+      <td><small style="color:${!r.subject?'#1565c0':'#555'};">${r.subject||'Lab Incharge'}</small></td>
+      <td>
+        <input class="form-input cell-input" value="${r.hallNumber}"
+               placeholder="Hall No" style="min-width:75px;"
+               onchange="allRows[${i}].hallNumber=this.value">
+      </td>
+      <td><small>${examName}</small></td>
+      <td><small>${dateDisp}</small></td>
+      <td>
+        <select class="form-select cell-input" style="min-width:65px;"
+                onchange="allRows[${i}].session=this.value">
+          <option value="FN" ${r.session==='FN'?'selected':''}>FN</option>
+          <option value="AN" ${r.session==='AN'?'selected':''}>AN</option>
+        </select>
+      </td>
+      <td style="color:#ccc;font-size:0.8rem;font-style:italic;">__________</td>
+      <td>
+        <button class="btn-icon btn-icon--red" title="Remove" onclick="removeRow(${i})">
+          <i class="fas fa-trash"></i>
+        </button>
+      </td>
+    </tr>`
+  ).join('');
+}
+
+function removeRow(i) {
+  allRows.splice(i, 1);
+  renderAllocTable();
+  // Re-render eligible table to re-enable the removed staff
+  renderEligibleTable(allEligible);
+}
+
+// ── Save allocation ───────────────────────────────────────────────────────
+async function saveAllocation() {
+  const subject  = document.getElementById('subjectInput').value.trim();
+  const examName = document.getElementById('examNameInput').value.trim();
+  const examDate = document.getElementById('examDateInput').value;
+  const session  = document.getElementById('sessionInput').value;
+  if (!subject)  { toast('❌ Enter subject name.', 'err'); return; }
+  if (!examName) { toast('❌ Enter exam name.', 'err');    return; }
+  if (!examDate) { toast('❌ Select exam date.', 'err');   return; }
+  if (!allRows.length) { toast('❌ Add at least one invigilator.', 'err'); return; }
+
+  const body = { examName, subjectName:subject, examDate, session, allocations:allRows };
+  const url  = currentSavedId
+    ? `/admin/invigilator/update/${currentSavedId}`
+    : '/admin/invigilator/save';
+
+  const resp = await fetch(url, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+  });
+  const data = await resp.json();
+  if (data.success) {
+    if (!currentSavedId) currentSavedId = data.id;
+    toast('✅ Saved! Use Download PDF to get printable sheet.', 'ok');
+    setTimeout(() => location.reload(), 2000);
+  } else {
+    toast('❌ ' + data.message, 'err');
+  }
+}
+
+// ── Download PDF ──────────────────────────────────────────────────────────
+async function downloadPDF() {
+  if (!currentSavedId) {
+    await saveAllocation();
+    if (!currentSavedId) return;
+    await new Promise(r => setTimeout(r, 400));
+  }
+  window.location = '/admin/invigilator/download/' + currentSavedId;
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────
+function esc(str){ return (str||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+function toast(msg, type) {
+  let t = document.getElementById('invigToast');
+  if (!t) {
+    t = document.createElement('div'); t.id = 'invigToast';
+    t.style.cssText = 'position:fixed;bottom:2rem;right:2rem;padding:0.85rem 1.4rem;border-radius:8px;font-weight:700;font-size:0.9rem;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:opacity 0.4s;pointer-events:none;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.background = type === 'ok' ? '#2e7d32' : type === 'warn' ? '#e65100' : '#c62828';
+  t.style.color = '#fff'; t.style.opacity = '1';
+  clearTimeout(t._t); t._t = setTimeout(() => t.style.opacity='0', 3500);
+}
+</script>
+<%- include('../partials/footer') %>

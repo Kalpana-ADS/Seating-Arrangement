@@ -1,0 +1,31 @@
+<div class="sidebar" id="sidebarEl">
+  <div class="sidebar-header">
+    <div class="sidebar-logo-wrap">
+      <img src="/images/logo.png" alt="PEC Logo" class="sidebar-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+      <div class="sidebar-logo-fallback" style="display:none;"><i class="fas fa-university"></i></div>
+    </div>
+    <div class="sidebar-title">
+      <span class="sidebar-college">PEC — ADS</span>
+      <span class="sidebar-sub">Admin Panel</span>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/admin/dashboard"   class="nav-item <%=currentPage==='dashboard'   ?'active':''%>"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+    <a href="/admin/upload"      class="nav-item <%=currentPage==='upload'      ?'active':''%>"><i class="fas fa-upload"></i> Upload Dataset</a>
+    <a href="/admin/students"    class="nav-item <%=currentPage==='students'    ?'active':''%>"><i class="fas fa-users"></i> Manage Students</a>
+    <a href="/admin/seating"     class="nav-item <%=currentPage==='seating'     ?'active':''%>"><i class="fas fa-chair"></i> Seating Arrangement</a>
+    <a href="/admin/deptnotice"  class="nav-item <%=currentPage==='deptnotice'  ?'active':''%>"><i class="fas fa-door-open"></i> Dept Notice Board</a>
+    <div class="nav-divider"></div>
+    <a href="/admin/invigilator" class="nav-item <%=currentPage==='invigilator'?'active':''%>"><i class="fas fa-user-tie"></i> Invigilator Allocation</a>
+    <a href="/admin/attendance"  class="nav-item <%=currentPage==='attendance'  ?'active':''%>"><i class="fas fa-clipboard-check"></i> Exam Attendance</a>
+    <div class="nav-divider"></div>
+    <a href="/admin/admins"      class="nav-item <%=currentPage==='admins'      ?'active':''%>"><i class="fas fa-users-cog"></i> Admin Users</a>
+    <a href="/admin/settings"    class="nav-item <%=currentPage==='settings'    ?'active':''%>"><i class="fas fa-cog"></i> Settings</a>
+    <a href="/" target="_blank"  class="nav-item"><i class="fas fa-eye"></i> Student Portal</a>
+    <a href="/admin/logout"      class="nav-item nav-logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+  </nav>
+  <div class="sidebar-footer">
+    <img src="/images/logo.png" alt="" class="sidebar-footer-logo" onerror="this.style.display='none';">
+    <span><i class="fas fa-user-shield"></i> <%=typeof adminName!=='undefined'?adminName:'Admin'%></span>
+  </div>
+</div>

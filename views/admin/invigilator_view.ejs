@@ -1,0 +1,191 @@
+<%- include('../partials/header') %>
+<div class="admin-layout">
+  <%- include('../partials/sidebar', { currentPage: 'invigilator' }) %>
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <h2 class="topbar-title"><i class="fas fa-user-tie"></i> Invigilator Sheet — <%= doc.examName %></h2>
+      </div>
+      <div class="topbar-right">
+        <a href="/admin/invigilator/download/<%= doc._id %>" class="btn-pdf btn-sm">
+          <i class="fas fa-file-pdf"></i> Download PDF
+        </a>
+        <button onclick="window.print()" class="btn-secondary btn-sm">
+          <i class="fas fa-print"></i> Print
+        </button>
+        <a href="/admin/invigilator" class="btn-secondary btn-sm">
+          <i class="fas fa-arrow-left"></i> Back
+        </a>
+        <span class="topbar-user"><i class="fas fa-user-circle"></i> <%= adminName %></span>
+      </div>
+    </div>
+
+    
+    <!-- College Banner -->
+    <div class="admin-college-banner">
+      <img src="/images/logo.png" alt="PEC" class="admin-banner-logo" onerror="this.style.display='none';">
+      <div class="admin-banner-text">
+        <div class="admin-banner-name">PANIMALAR ENGINEERING COLLEGE</div>
+        <div class="admin-banner-sub">(Autonomous Institution) &nbsp;·&nbsp; Dept. of AI &amp; Data Science</div>
+      </div>
+    </div>
+    <div class="admin-content">
+      <div class="dash-card" id="printableArea">
+
+        <!-- Printable Header -->
+        <div class="print-header">
+          <div class="print-logo-row">
+            <img src="/images/logo.png" alt="PEC" class="print-logo-img" onerror="this.onerror=null;this.style.display='none';">
+            <div class="print-title-block">
+              <div class="print-college">PANIMALAR ENGINEERING COLLEGE</div>
+              <div class="print-sub">(Autonomous Institution)</div>
+              <div class="print-dept">Department of Artificial Intelligence and Data Science</div>
+            </div>
+          </div>
+          <div class="print-divider"></div>
+          <div class="print-doc-title">INVIGILATOR ALLOCATION SHEET</div>
+          <div class="print-meta">
+            <span><strong>Exam:</strong> <%= doc.examName %></span>
+            <span><strong>Subject:</strong> <%= doc.subjectName %></span>
+            <span><strong>Date:</strong> <%= new Date(doc.examDate).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'}) %></span>
+            <span><strong>Session:</strong> <%= doc.session %> (<%= doc.session==='FN' ? '8:15 AM – 11:15 AM' : '12:15 PM – 3:15 PM' %>)</span>
+          </div>
+        </div>
+
+        <!-- Allocation Table (editable) -->
+        <% if(doc.allocations.length === 0) { %>
+          <div class="empty-mini" style="padding:3rem;text-align:center;">
+            <p>No invigilators allocated.</p>
+            <a href="/admin/invigilator" class="btn-secondary" style="margin-top:1rem;">← Back</a>
+          </div>
+        <% } else { %>
+
+        <!-- Inline edit notice -->
+        <div style="padding:0.5rem 0 0.75rem;font-size:0.82rem;color:#555;display:flex;justify-content:space-between;align-items:center;">
+          <span><i class="fas fa-edit"></i> Click any <strong>Hall No</strong> or <strong>Session</strong> cell to edit inline</span>
+          <button class="btn-primary btn-sm" onclick="saveEdits()"><i class="fas fa-save"></i> Save Changes</button>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="seating-table" id="viewTable">
+            <thead>
+              <tr>
+                <th>S.No</th>
+                <th>Staff Name</th>
+                <th>Designation</th>
+                <th>Hall Number</th>
+                <th>Exam Name</th>
+                <th>Date</th>
+                <th>Session (FN/AN)</th>
+                <th>Signature</th>
+              </tr>
+            </thead>
+            <tbody id="viewTbody">
+              <% doc.allocations.forEach((a,i)=>{ %>
+              <tr>
+                <td class="td-sno"><%=i+1%></td>
+                <td><strong><%=a.staffName%></strong></td>
+                <td><small><%=a.designation%></small></td>
+                <td>
+                  <input class="form-input cell-input" value="<%=a.hallNumber||''%>"
+                         placeholder="Hall No" data-idx="<%=i%>" data-field="hallNumber"
+                         style="min-width:80px;">
+                </td>
+                <td><%=doc.examName%></td>
+                <td><%=new Date(doc.examDate).toLocaleDateString('en-IN')%></td>
+                <td>
+                  <select class="form-select cell-input" data-idx="<%=i%>" data-field="session">
+                    <option value="FN" <%=a.session==='FN'?'selected':''%>>FN</option>
+                    <option value="AN" <%=a.session==='AN'?'selected':''%>>AN</option>
+                  </select>
+                </td>
+                <td class="no-print" style="color:#ccc;font-size:0.85rem;">__________________</td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:2.5rem;padding-top:1rem;border-top:1px dashed #ccc;font-size:0.9rem;color:#333;">
+          <div>Examination Controller: _________________________________</div>
+          <div>Head of Department: _________________________________</div>
+        </div>
+        <div style="text-align:center;margin-top:1rem;font-size:0.78rem;color:#aaa;">
+          Generated: <%=new Date().toLocaleString('en-IN')%> &nbsp;|&nbsp;
+          Panimalar Engineering College — Examination Cell
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DOC_ID = '<%= doc._id %>';
+
+async function saveEdits() {
+  const inputs  = document.querySelectorAll('#viewTbody .cell-input');
+  const rows    = {};
+  inputs.forEach(el => {
+    const idx   = el.dataset.idx;
+    const field = el.dataset.field;
+    if (!rows[idx]) rows[idx] = {};
+    rows[idx][field] = el.value;
+  });
+
+  // Build updated allocations array
+  const orig = <%- JSON.stringify(doc.allocations) %>;
+  const updated = orig.map((a, i) => ({
+    ...a,
+    hallNumber: rows[i]?.hallNumber ?? a.hallNumber,
+    session:    rows[i]?.session    ?? a.session
+  }));
+
+  const resp = await fetch('/admin/invigilator/update/' + DOC_ID, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      examName:    '<%=doc.examName%>',
+      subjectName: '<%=doc.subjectName%>',
+      examDate:    '<%=doc.examDate%>',
+      session:     '<%=doc.session%>',
+      allocations: updated
+    })
+  });
+  const data = await resp.json();
+  if (data.success) {
+    showToast('✅ Changes saved successfully!', 'ok');
+  } else {
+    showToast('❌ ' + data.message, 'err');
+  }
+}
+
+function showToast(msg, type) {
+  let t = document.getElementById('vToast');
+  if (!t) { t=document.createElement('div'); t.id='vToast'; t.style.cssText='position:fixed;bottom:2rem;right:2rem;padding:0.85rem 1.4rem;border-radius:8px;font-weight:700;font-size:0.9rem;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);'; document.body.appendChild(t); }
+  t.textContent=msg; t.style.background=type==='ok'?'#2e7d32':'#c62828'; t.style.color='#fff'; t.style.opacity='1';
+  clearTimeout(t._t); t._t=setTimeout(()=>t.style.opacity='0', 3500);
+}
+</script>
+
+<style>
+@media print {
+  .sidebar,.admin-topbar,.btn-pdf,.btn-secondary,.btn-primary,.sidebar-toggle,.no-print { display:none!important; }
+  .admin-main { margin-left:0!important; }
+  #printableArea { box-shadow:none!important; border:none!important; }
+  .cell-input { border:none!important; background:transparent!important; padding:0!important; }
+  .print-header { margin-bottom:1.5rem; }
+}
+.print-header { border-bottom:3px solid #0d1b4b; padding-bottom:1rem; margin-bottom:1.25rem; }
+.print-logo-row { display:flex; align-items:center; gap:1rem; margin-bottom:0.75rem; }
+.print-emblem { width:64px;height:64px;background:#0d1b4b;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8rem;color:#c8a84b;flex-shrink:0; }
+.print-college { font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:800;color:#0d1b4b; }
+.print-sub  { font-size:0.88rem;color:#555; }
+.print-dept { font-size:0.95rem;color:#1a2f7a;font-weight:700; }
+.print-divider { height:2px;background:#0d1b4b;margin:0.75rem 0; }
+.print-doc-title { font-size:1.1rem;font-weight:800;text-align:center;color:#0d1b4b;letter-spacing:0.05em;margin-bottom:0.75rem; }
+.print-meta { display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:center;font-size:0.88rem;color:#333;background:#f9faff;padding:0.65rem 1rem;border-radius:6px; }
+</style>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,136 @@
+<%- include('../partials/header') %>
+
+<div class="admin-layout">
+  <%- include('../partials/sidebar', { currentPage: 'students' }) %>
+
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <h2 class="topbar-title"><i class="fas fa-users"></i> Manage Students</h2>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-user"><i class="fas fa-user-circle"></i> <%= adminName || 'Admin' %></span>
+      </div>
+    </div>
+
+    
+    <!-- College Banner -->
+    <div class="admin-college-banner">
+      <img src="/images/logo.png" alt="PEC" class="admin-banner-logo" onerror="this.style.display='none';">
+      <div class="admin-banner-text">
+        <div class="admin-banner-name">PANIMALAR ENGINEERING COLLEGE</div>
+        <div class="admin-banner-sub">(Autonomous Institution) &nbsp;·&nbsp; Dept. of AI &amp; Data Science</div>
+      </div>
+    </div>
+    <div class="admin-content">
+      <% if (error && error.length > 0) { %>
+        <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%= error[0] %></div>
+      <% } %>
+      <% if (success && success.length > 0) { %>
+        <div class="alert alert-success"><i class="fas fa-check-circle"></i> <%= success[0] %></div>
+      <% } %>
+
+      <!-- Stats -->
+      <div class="stats-grid" style="margin-bottom:1.5rem;">
+        <div class="stat-card stat-blue">
+          <div class="stat-icon"><i class="fas fa-users"></i></div>
+          <div class="stat-info">
+            <div class="stat-number"><%= totalStudents %></div>
+            <div class="stat-label">Total Students</div>
+          </div>
+        </div>
+        <% yearCounts.forEach(yc => { %>
+        <div class="stat-card stat-green">
+          <div class="stat-icon"><i class="fas fa-graduation-cap"></i></div>
+          <div class="stat-info">
+            <div class="stat-number"><%= yc.count %></div>
+            <div class="stat-label"><%= yc._id %> Year</div>
+          </div>
+        </div>
+        <% }) %>
+      </div>
+
+      <!-- Filter Form -->
+      <div class="dash-card" style="margin-bottom:1.5rem;">
+        <form action="/admin/students" method="GET" class="filter-form">
+          <div class="filter-row">
+            <div class="form-group" style="flex:1;">
+              <label>Filter by Year</label>
+              <select name="year" class="form-select">
+                <option value="">All Years</option>
+                <option value="II" <%= filters.year === 'II' ? 'selected' : '' %>>II Year</option>
+                <option value="III" <%= filters.year === 'III' ? 'selected' : '' %>>III Year</option>
+                <option value="IV" <%= filters.year === 'IV' ? 'selected' : '' %>>IV Year</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Filter by Section</label>
+              <input type="text" name="section" class="form-input" placeholder="e.g. A" value="<%= filters.section || '' %>">
+            </div>
+            <div class="form-group" style="flex:2;">
+              <label>Search</label>
+              <input type="text" name="search" class="form-input" placeholder="Search by name or register number..." value="<%= filters.search || '' %>">
+            </div>
+            <div class="form-group" style="align-self:flex-end;">
+              <button type="submit" class="btn-primary"><i class="fas fa-search"></i> Search</button>
+              <a href="/admin/students" class="btn-secondary" style="margin-left:0.5rem;">Reset</a>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Students Table -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3><i class="fas fa-table"></i> Students (<%= students.length %> records)</h3>
+          <a href="/admin/upload" class="btn-primary btn-sm"><i class="fas fa-plus"></i> Upload More</a>
+        </div>
+        <% if (students.length === 0) { %>
+          <div class="empty-mini" style="padding:3rem;text-align:center;">
+            <i class="fas fa-users" style="font-size:3rem;color:#ccc;display:block;margin-bottom:1rem;"></i>
+            <p>No students found. <a href="/admin/upload">Upload a dataset</a> to get started.</p>
+          </div>
+        <% } else { %>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>S.No</th>
+                <th>Register Number</th>
+                <th>Name</th>
+                <th>Year</th>
+                <th>Section</th>
+                <th>Department</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% students.forEach((s, i) => { %>
+              <tr>
+                <td><%= i + 1 %></td>
+                <td><code class="reg-code"><%= s.registerNumber %></code></td>
+                <td><%= s.name %></td>
+                <td><span class="badge-year"><%= s.year %></span></td>
+                <td><span class="badge-sec">Sec <%= s.section %></span></td>
+                <td><small><%= s.department %></small></td>
+                <td>
+                  <form action="/admin/students/delete/<%= s._id %>" method="POST"
+                        onsubmit="return confirm('Delete this student?')" style="display:inline;">
+                    <button type="submit" class="btn-icon btn-icon--red">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

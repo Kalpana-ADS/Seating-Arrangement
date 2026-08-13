@@ -1,0 +1,180 @@
+<%- include('../partials/header') %>
+
+<div class="public-page">
+  <!-- Top Banner -->
+  <div class="top-banner">
+    <span><i class="fas fa-phone"></i> +91-44-26490404</span>
+    <span><i class="fas fa-envelope"></i> principal@panimalar.ac.in</span>
+    <span><i class="fas fa-map-marker-alt"></i> Chennai - 600 123</span>
+  </div>
+
+  <!-- Header -->
+  <header class="college-header">
+    <div class="header-inner">
+      <div class="college-logo-wrap">
+        <img src="/images/logo.png" alt="PEC" class="college-logo-img" onerror="this.onerror=null;this.style.display='none';">
+      </div>
+      <div class="college-info">
+        <h1 class="college-name">PANIMALAR ENGINEERING COLLEGE</h1>
+        <p class="college-auto">(Autonomous Institution)</p>
+        <p class="college-dept">Department of Artificial Intelligence and Data Science</p>
+        <p class="college-accred">
+          <span class="badge-accred">NAAC A+</span>
+          <span class="badge-accred">NBA Accredited</span>
+          <span class="badge-accred">Autonomous</span>
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <!-- Nav -->
+  <nav class="main-nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-link">Home</a>
+      <a href="/seating/view/II" class="nav-link <%= year === 'II' ? 'active' : '' %>">II Year</a>
+      <a href="/seating/view/III" class="nav-link <%= year === 'III' ? 'active' : '' %>">III Year</a>
+      <a href="/seating/view/IV" class="nav-link <%= year === 'IV' ? 'active' : '' %>">IV Year</a>
+      <a href="/admin/login" class="nav-link nav-admin"><i class="fas fa-lock"></i> Admin Login</a>
+    </div>
+  </nav>
+
+  <!-- Page Title -->
+  <div class="page-title-bar">
+    <div class="page-title-inner">
+      <div>
+        <h2 class="page-title-text">
+          <i class="fas fa-chair"></i>
+          <%= year %> Year – Exam Seating Arrangement
+        </h2>
+        <p class="page-title-sub">
+          <%= examName %> &nbsp;|&nbsp;
+          Date: <%= new Date(examDate).toLocaleDateString('en-IN', { day:'2-digit', month:'long', year:'numeric' }) %>
+          &nbsp;|&nbsp; Dept: AI & DS
+        </p>
+      </div>
+      <div class="page-title-actions">
+        <a href="/seating/export/public/<%= year %>" class="btn-pdf">
+          <i class="fas fa-file-pdf"></i> Download PDF
+        </a>
+        <a href="/" class="btn-back">
+          <i class="fas fa-arrow-left"></i> Back
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seating Table -->
+  <section class="seating-section">
+    <% if (seatings.length === 0) { %>
+    <div class="empty-state">
+      <i class="fas fa-chair"></i>
+      <h3>No Seating Arrangement Available</h3>
+      <p>The seating arrangement for <%= year %> Year has not been published yet.</p>
+      <p>Please check back later or contact the Examination Cell.</p>
+      <a href="/" class="btn-back" style="margin-top:1rem;display:inline-block;">← Back to Home</a>
+    </div>
+    <% } else { %>
+
+    <!-- Instructions -->
+    <div class="seating-notice">
+      <i class="fas fa-info-circle"></i>
+      Students are advised to report to their respective halls 15 minutes before the examination.
+      Carry your Hall Ticket and College ID Card. Mobile phones are strictly not allowed.
+    </div>
+
+    <!-- Group by section -->
+    <%
+      const sections = [...new Set(seatings.map(s => s.section))].sort();
+    %>
+
+    <% sections.forEach(sec => { %>
+      <% const sectionRows = seatings.filter(s => s.section === sec); %>
+      <div class="seating-block">
+        <div class="seating-block-header">
+          <span class="block-year-badge"><%= year %> Year</span>
+          <span class="block-sec-badge">Section <%= sec %></span>
+          <span class="block-total">
+            Total: <%= sectionRows.reduce((a,r) => a + r.totalStudents, 0) %> students
+          </span>
+        </div>
+        <div class="table-wrapper">
+          <table class="seating-table">
+            <thead>
+              <tr>
+                <th>S.No</th>
+                <th>Year / Section</th>
+                <th>Hall No.</th>
+                <th>Register Number Range</th>
+                <th>Total Students</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% sectionRows.forEach((row, idx) => { %>
+              <tr>
+                <td class="td-sno"><%= idx + 1 %></td>
+                <td class="td-sec">
+                  <span class="sec-label"><%= year %> <%= sec %> SEC</span>
+                </td>
+                <td class="td-hall"><%= row.hallNumber || '—' %></td>
+                <td class="td-range">
+                  <span class="reg-start"><%= row.startRegister %></span>
+                  <span class="reg-dash">–</span>
+                  <span class="reg-end"><%= row.endRegister %></span>
+                </td>
+                <td class="td-total"><strong><%= row.totalStudents %></strong></td>
+              </tr>
+              <% }) %>
+              <tr class="tr-subtotal">
+                <td colspan="4" style="text-align:right;font-weight:700;padding-right:1.5rem;">Section Total:</td>
+                <td><strong><%= sectionRows.reduce((a,r) => a + r.totalStudents, 0) %></strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% }) %>
+
+    <!-- Grand Total -->
+    <div class="grand-total-bar">
+      <span><i class="fas fa-users"></i> Grand Total Students Allocated:</span>
+      <strong><%= seatings.reduce((a,r) => a + r.totalStudents, 0) %></strong>
+    </div>
+
+    <!-- Print note -->
+    <div class="print-note">
+      <p>
+        <i class="fas fa-print"></i>
+        Generated on: <%= new Date().toLocaleString('en-IN') %> &nbsp;|&nbsp;
+        Panimalar Engineering College – Examination Cell
+      </p>
+    </div>
+    <% } %>
+  </section>
+
+  <!-- Footer -->
+  <footer class="college-footer">
+    <div class="footer-inner">
+      <div class="footer-col">
+        <h5>Panimalar Engineering College</h5>
+        <p>Bangalore Trunk Road, Poonamallee, Chennai – 600 123</p>
+      </div>
+      <div class="footer-col">
+        <h5>Quick Links</h5>
+        <a href="/">Home</a>
+        <a href="/seating/view/II">II Year Seating</a>
+        <a href="/seating/view/III">III Year Seating</a>
+        <a href="/seating/view/IV">IV Year Seating</a>
+      </div>
+      <div class="footer-col">
+        <h5>Contact</h5>
+        <p><i class="fas fa-phone"></i> +91-44-26490404</p>
+        <p><i class="fas fa-envelope"></i> examcell@panimalar.ac.in</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2024 Panimalar Engineering College. All Rights Reserved.</p>
+    </div>
+  </footer>
+</div>
+
+<%- include('../partials/footer') %>

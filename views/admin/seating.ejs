@@ -1,0 +1,709 @@
+<%- include('../partials/header') %>
+<div class="admin-layout">
+  <%- include('../partials/sidebar', { currentPage: 'seating' }) %>
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <h2 class="topbar-title"><i class="fas fa-chair"></i> Seating Arrangement</h2>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-user"><i class="fas fa-user-circle"></i> <%=adminName||'Admin'%></span>
+      </div>
+    </div>
+    <div class="admin-college-banner">
+      <img src="/images/logo.png" alt="PEC" class="admin-banner-logo" onerror="this.style.display='none';">
+      <div class="admin-banner-text">
+        <div class="admin-banner-name">PANIMALAR ENGINEERING COLLEGE</div>
+        <div class="admin-banner-sub">(Autonomous Institution) &nbsp;·&nbsp; Dept. of AI &amp; Data Science</div>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <%if(error&&error.length){%><div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%=error[0]%></div><%}%>
+      <%if(success&&success.length){%><div class="alert alert-success"><i class="fas fa-check-circle"></i> <%=success[0]%></div><%}%>
+
+      <div class="seating-admin-grid">
+
+        <!-- ════ LEFT PANEL ════ -->
+        <div class="dash-card">
+
+          <!-- EXAM DETAILS -->
+          <div class="dash-card-header"><h3><i class="fas fa-info-circle"></i> Exam Details</h3></div>
+          <div class="form-group">
+            <label>Exam Name</label>
+            <input type="text" id="globalExam" class="form-input" value="Internal Assessment" placeholder="e.g. Internal Assessment I">
+          </div>
+          <div class="form-group">
+            <label>Hall Number <span class="req">*</span></label>
+            <input type="text" id="globalHall" class="form-input" placeholder="e.g. H-101">
+          </div>
+          <div class="form-group">
+            <label>Exam Start Date <span class="req">*</span></label>
+            <input type="date" id="globalDate" class="form-input" value="<%=new Date().toISOString().split('T')[0]%>">
+          </div>
+          <div class="form-group">
+            <label>Exam End Date <span class="req">*</span></label>
+            <input type="date" id="globalEndDate" class="form-input" value="<%=new Date().toISOString().split('T')[0]%>">
+          </div>
+          <div class="form-group">
+            <small style="color:#555;display:block;margin-top:-0.5rem;">
+              This date range will appear in Hall PDF and Dept Notice PDF.
+            </small>
+          </div>
+          <div class="form-group">
+            <label>Session <span class="req">*</span></label>
+            <div style="display:flex;gap:0.5rem;">
+              <button type="button" id="btnFN" class="session-pick-btn active" onclick="pickSession('FN')">
+                <i class="fas fa-sun"></i> FN<br><small>8:15 AM – 11:15 AM</small>
+              </button>
+              <button type="button" id="btnAN" class="session-pick-btn" onclick="pickSession('AN')">
+                <i class="fas fa-cloud-sun"></i> AN<br><small>12:15 PM – 3:15 PM</small>
+              </button>
+            </div>
+            <input type="hidden" id="globalSession" value="FN">
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- ADD SECTION TO HALL -->
+          <div class="dash-card-header"><h3><i class="fas fa-plus-circle"></i> Add Section to Hall</h3></div>
+          <small style="color:#888;display:block;margin-bottom:0.75rem;">
+            Each click adds one year/section to the current hall. Seat numbers continue automatically.
+          </small>
+
+          <div class="form-group">
+            <label>Quick Pick</label>
+            <div style="display:flex;flex-wrap:wrap;gap:0.35rem;">
+              <%sections.forEach(s=>{%>
+                <a href="#" class="sec-tag"
+                   onclick="quickPickSection('<%=s._id.year%>','<%=s._id.section%>');return false;">
+                  <%=s._id.year%>-<%=s._id.section%>
+                </a>
+              <%})%>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="flex:1;">
+              <label>Year <span class="req">*</span></label>
+              <select id="manYear" class="form-select">
+                <option value="II">II Year</option>
+                <option value="III">III Year</option>
+                <option value="IV">IV Year</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Section <span class="req">*</span></label>
+              <input type="text" id="manSection" class="form-input" placeholder="A">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>No. of Students from this Section <span class="req">*</span></label>
+            <input type="number" id="manCount" class="form-input" value="20" min="1" max="200">
+            <small>How many students from this section sit in this hall</small>
+          </div>
+
+          <button class="btn-primary" style="width:100%;" onclick="addRow()" id="addRowBtn">
+            <i class="fas fa-plus"></i> Add This Section's Students
+          </button>
+          <div id="manualResult" class="manual-result" style="margin-top:0.75rem;min-height:2rem;"></div>
+
+          <div class="divider"></div>
+
+          <!-- HALL ACTIONS -->
+          <div class="dash-card-header"><h3><i class="fas fa-door-open"></i> Hall Actions</h3></div>
+          <div style="display:flex;flex-direction:column;gap:0.6rem;">
+            <button class="btn-pdf" style="width:100%;" onclick="finishHall()">
+              <i class="fas fa-file-pdf"></i> This Hall is Complete — Download PDF
+            </button>
+            <button class="btn-secondary" style="width:100%;" onclick="startNextHall()">
+              <i class="fas fa-arrow-right"></i> Start Next Hall
+            </button>
+          </div>
+          <div id="hallActionMsg" class="manual-result" style="margin-top:0.75rem;"></div>
+
+          <div class="divider"></div>
+
+          <!-- AI BOX -->
+          <div id="aiBox" style="display:none;">
+            <div class="ai-suggest-card">
+              <div class="ai-suggest-header"><i class="fas fa-robot"></i> Smart Suggestion</div>
+              <div id="aiMsg" class="ai-suggest-msg"></div>
+              <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
+                <button class="btn-primary btn-sm" id="aiYes" onclick="aiAnswer(true)"><i class="fas fa-check"></i> Yes</button>
+                <button class="btn-secondary btn-sm" id="aiNo" onclick="aiAnswer(false)"><i class="fas fa-times"></i> No</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- CLEAR + EXPORT -->
+          <div class="dash-card-header"><h3><i class="fas fa-tools"></i> Data Tools</h3></div>
+          <form action="/admin/seating/clear" method="POST" onsubmit="return confirm('Clear seating data?')"
+                style="display:flex;gap:0.5rem;margin-bottom:0.75rem;">
+            <select name="year" class="form-select" style="flex:1;">
+              <option value="">All Years</option>
+              <option value="II">II Year</option>
+              <option value="III">III Year</option>
+              <option value="IV">IV Year</option>
+            </select>
+            <button type="submit" class="btn-danger"><i class="fas fa-trash"></i> Clear</button>
+          </form>
+          <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+            <%['II','III','IV'].forEach(y=>{%>
+              <a href="/seating/export/public/<%=y%>" class="btn-pdf btn-sm"><i class="fas fa-file-pdf"></i> <%=y%> PDF</a>
+              <a href="/seating/view/<%=y%>" target="_blank" class="btn-secondary btn-sm"><i class="fas fa-eye"></i> <%=y%></a>
+            <%})%>
+            <a href="#" onclick="openDeptNotice(); return false;" class="btn-primary btn-sm"><i class="fas fa-door-open"></i> Dept Notice</a>
+          </div>
+        </div>
+
+        <!-- ════ RIGHT PANEL ════ -->
+        <div>
+
+          <!-- Year filter -->
+          <div class="dash-card" style="margin-bottom:1rem;">
+            <form action="/admin/seating" method="GET" style="display:flex;gap:0.5rem;align-items:flex-end;">
+              <div class="form-group" style="flex:1;margin:0;">
+                <label>Filter by Year</label>
+                <select name="year" class="form-select" onchange="this.form.submit()">
+                  <option value="">All Years</option>
+                  <option value="II"  <%=selectedYear==='II' ?'selected':''%>>II Year</option>
+                  <option value="III" <%=selectedYear==='III'?'selected':''%>>III Year</option>
+                  <option value="IV"  <%=selectedYear==='IV' ?'selected':''%>>IV Year</option>
+                </select>
+              </div>
+              <button type="submit" class="btn-secondary"><i class="fas fa-filter"></i> Filter</button>
+            </form>
+          </div>
+
+          <!-- Seating Records — GROUPED BY HALL -->
+          <%
+            // Group seatings by hallNumber
+            const hallMap = {};
+            seatings.forEach(s => {
+              const h = String(s.hallNumber || '(No Hall)').toUpperCase();
+              if (!hallMap[h]) hallMap[h] = [];
+              hallMap[h].push(s);
+            });
+            const hallKeys = Object.keys(hallMap).sort();
+          %>
+
+          <% if(seatings.length===0){ %>
+            <div class="dash-card">
+              <div style="padding:3rem;text-align:center;" id="emptyMsg">
+                <i class="fas fa-chair" style="font-size:3rem;color:#ccc;display:block;margin-bottom:1rem;"></i>
+                <p>No seating generated yet. Add a section using the left panel.</p>
+              </div>
+            </div>
+          <% } %>
+
+          <!-- One card per hall -->
+          <% hallKeys.forEach(hall => { %>
+          <%   const rows = hallMap[hall]; %>
+          <%   const hallTotal = rows.reduce((a,s)=>a+s.totalStudents,0); %>
+          <div class="dash-card" style="margin-bottom:1.25rem;" id="hallCard-<%=encodeURIComponent(hall)%>">
+            <div class="dash-card-header">
+              <h3><i class="fas fa-door-closed"></i>
+                Hall: <strong><%=hall%></strong>
+                <span class="badge-year" style="margin-left:0.5rem;"><%=rows.length%> sections</span>
+              </h3>
+              <div style="display:flex;gap:0.5rem;align-items:center;">
+                <a href="#" onclick="openHallPdf('<%- encodeURIComponent(hall) %>'); return false;"
+                   class="btn-pdf btn-sm" title="Download Hall PDF">
+                  <i class="fas fa-file-pdf"></i> Download PDF
+                </a>
+                <a href="#" onclick="openHallSheet('<%- encodeURIComponent(hall) %>'); return false;"
+                   class="btn-secondary btn-sm" title="View Hall Sheet">
+                  <i class="fas fa-eye"></i> View
+                </a>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>#</th><th>Year/Sec</th><th>Hall No</th><th>Start Reg</th><th>End Reg</th>
+                    <th>Seats</th><th>Total</th><th>Session</th><th>Exam</th><th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% rows.forEach((s,i)=>{ const seatStart = s.seatStart||1; const seatEnd = seatStart + (s.totalStudents||0) - 1; %>
+                  <tr id="row-<%=s._id%>" data-id="<%=s._id%>">
+                    <td><%=i+1%></td>
+                    <td><span class="badge-year"><%= (s.year || '').toString().toUpperCase() %> <%= (s.section || '').toString().toUpperCase() %></span></td>
+                    <td class="editable-cell" data-field="hallNumber" data-id="<%=s._id%>">
+                      <span class="cell-val"><code><%=s.hallNumber || '-' %></code></span>
+                      <input class="cell-input form-input" style="display:none;" value="<%=s.hallNumber || ''%>">
+                    </td>
+                    <td class="editable-cell" data-field="startRegister" data-id="<%=s._id%>">
+                      <span class="cell-val"><code><%=s.startRegister%></code></span>
+                      <input class="cell-input form-input" style="display:none;" value="<%=s.startRegister%>">
+                    </td>
+                    <td class="editable-cell" data-field="endRegister" data-id="<%=s._id%>">
+                      <span class="cell-val"><code><%=s.endRegister%></code></span>
+                      <input class="cell-input form-input" style="display:none;" value="<%=s.endRegister%>">
+                    </td>
+                    <td class="editable-cell" data-field="seatStart" data-id="<%=s._id%>">
+                      <span class="cell-val"><strong><%=seatStart%>–<%=seatEnd%></strong></span>
+                      <input class="cell-input form-input" type="number" style="display:none;" value="<%=seatStart%>">
+                    </td>
+                    <td class="editable-cell" data-field="totalStudents" data-id="<%=s._id%>">
+                      <span class="cell-val"><strong><%=s.totalStudents%></strong></span>
+                      <input class="cell-input form-input" type="number" style="display:none;" value="<%=s.totalStudents%>">
+                    </td>
+                    <td>
+                      <span class="badge-year" style="background:<%= (s.examSession||'FN')==='AN'?'#6a1b9a':'#1565c0' %>">
+                        <%= s.examSession||'FN' %>
+                      </span>
+                    </td>
+                    <td class="editable-cell" data-field="examName" data-id="<%=s._id%>">
+                      <span class="cell-val"><small><%=s.examName%></small></span>
+                      <input class="cell-input form-input" style="display:none;" value="<%=s.examName%>">
+                    </td>
+                    <td style="white-space:nowrap;">
+                      <button class="btn-icon btn-icon--blue" title="Edit" onclick="toggleEdit('<%=s._id%>')">
+                        <i class="fas fa-edit" id="edit-icon-<%=s._id%>"></i>
+                      </button>
+                      <button class="btn-icon btn-icon--green" title="Save" style="display:none;" id="save-btn-<%=s._id%>" onclick="saveRow('<%=s._id%>')">
+                        <i class="fas fa-check"></i>
+                      </button>
+                      <form action="/admin/seating/delete/<%=s._id%>" method="POST"
+                            onsubmit="return confirm('Delete this row?')" style="display:inline;">
+                        <button type="submit" class="btn-icon btn-icon--red"><i class="fas fa-trash"></i></button>
+                      </form>
+                    </td>
+                  </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <div class="grand-total-bar">
+              <span>Hall <%=hall%> Total:</span>
+              <strong><%=hallTotal%> students</strong>
+            </div>
+          </div>
+          <% }) %>
+
+          <!-- Overall grand total -->
+          <% if(seatings.length>0){ %>
+          <div class="grand-total-bar" style="margin-top:0.5rem;">
+            <span>Grand Total (All Halls):</span>
+            <strong><%=seatings.reduce((a,s)=>a+s.totalStudents,0)%> students</strong>
+          </div>
+          <% } %>
+
+          <!-- Live-added halls appear here -->
+          <div id="liveHallsArea"></div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let aiCallback  = null;
+let currentSession = 'FN';
+
+// ── SESSION PICKER ────────────────────────────────────────────────────────────
+function pickSession(s) {
+  currentSession = s;
+  document.getElementById('globalSession').value = s;
+  document.getElementById('btnFN').classList.toggle('active', s==='FN');
+  document.getElementById('btnAN').classList.toggle('active', s==='AN');
+  saveSeatingFormState();
+}
+
+function saveSeatingFormState() {
+  const hallEl = document.getElementById('globalHall');
+  if (hallEl) hallEl.value = hallEl.value.toUpperCase();
+  localStorage.setItem('seating_globalExam', document.getElementById('globalExam').value);
+  localStorage.setItem('seating_globalHall', document.getElementById('globalHall').value);
+  localStorage.setItem('seating_globalDate', document.getElementById('globalDate').value);
+  localStorage.setItem('seating_globalEndDate', document.getElementById('globalEndDate').value);
+  localStorage.setItem('seating_globalSession', document.getElementById('globalSession').value);
+}
+
+function loadSeatingFormState() {
+  const exam = localStorage.getItem('seating_globalExam');
+  const hall = localStorage.getItem('seating_globalHall');
+  const date = localStorage.getItem('seating_globalDate');
+  const endDate = localStorage.getItem('seating_globalEndDate');
+  const session = localStorage.getItem('seating_globalSession');
+  if (exam !== null) document.getElementById('globalExam').value = exam;
+  if (hall !== null) document.getElementById('globalHall').value = hall;
+  if (date !== null) document.getElementById('globalDate').value = date;
+  if (endDate !== null) document.getElementById('globalEndDate').value = endDate;
+  if (session === 'AN' || session === 'FN') pickSession(session);
+}
+
+// ── QUICK PICK ────────────────────────────────────────────────────────────────
+function quickPickSection(year, section) {
+  document.getElementById('manYear').value    = year;
+  document.getElementById('manSection').value = section;
+  document.getElementById('manCount').focus();
+  fetchAndSuggest(year, section);
+}
+
+async function fetchAndSuggest(year, section) {
+  try {
+    const r = await fetch('/admin/seating/remaining?year='+year+'&section='+section);
+    const d = await r.json();
+    if (!d.success) return;
+    const { total, allocated, remaining, nextReg } = d;
+    if (remaining <= 0) {
+      showAI('✅ All '+total+' students of '+year+' Year – Sec '+section+' already allocated.', null, 'OK');
+      document.getElementById('manCount').value = 0;
+    } else {
+      const m = allocated > 0
+        ? year+' Year – Sec '+section+' has '+total+' total.\nAllocated: '+allocated+'\nRemaining: '+remaining+' (next: '+nextReg+')\n\nSet count to '+remaining+'?'
+        : year+' Year – Sec '+section+' has '+total+' students.\nNone allocated yet. Start from '+nextReg+'.\n\nSet count to all '+total+'?';
+      showAI(m, ()=>{ document.getElementById('manCount').value = remaining; });
+    }
+  } catch(e){}
+}
+
+// ── AI BOX ────────────────────────────────────────────────────────────────────
+function showAI(msg, cb, yesLabel) {
+  document.getElementById('aiMsg').innerHTML = msg.replace(/\n/g,'<br>');
+  document.getElementById('aiBox').style.display = '';
+  aiCallback = cb;
+  document.getElementById('aiYes').style.display = cb ? '' : 'none';
+  document.getElementById('aiYes').innerHTML = '<i class="fas fa-check"></i> '+(yesLabel||'Yes');
+  document.getElementById('aiNo').textContent = cb ? '✕ No' : '✓ OK';
+}
+function aiAnswer(yes) {
+  document.getElementById('aiBox').style.display = 'none';
+  if (yes && aiCallback) aiCallback();
+  aiCallback = null;
+  document.getElementById('aiYes').style.display = '';
+  document.getElementById('aiNo').textContent = '✕ No';
+}
+
+// ── ADD ROW ───────────────────────────────────────────────────────────────────
+async function addRow() {
+  saveSeatingFormState();
+  const year    = document.getElementById('manYear').value;
+  const section = document.getElementById('manSection').value.trim().toUpperCase();
+  const count   = parseInt(document.getElementById('manCount').value)||0;
+  const hall    = document.getElementById('globalHall').value.trim().toUpperCase();
+  document.getElementById('globalHall').value = hall;
+  const exam    = document.getElementById('globalExam').value.trim()||'Internal Assessment';
+  const date    = document.getElementById('globalDate').value;
+  const examSession = document.getElementById('globalSession').value;
+  const result  = document.getElementById('manualResult');
+
+  document.getElementById('aiBox').style.display = 'none';
+
+  if (!section){ result.innerHTML=errMsg('Enter a Section (e.g. A).'); return; }
+  if (!hall)   { result.innerHTML=errMsg('Enter Hall Number first.'); document.getElementById('globalHall').focus(); return; }
+  if (count<1) { result.innerHTML=errMsg('Number of students must be at least 1.'); return; }
+  if (!date)   { result.innerHTML=errMsg('Select an Exam Date.'); return; }
+
+  const btn = document.getElementById('addRowBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+  result.innerHTML = '<p style="color:#555;"><i class="fas fa-spinner fa-spin"></i> Sending...</p>';
+
+  try {
+    const resp = await fetch('/admin/seating/add-row', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ year, section, totalStudents:count,
+                             hallNumber:hall, examName:exam, examDate:date, examSession })
+    });
+    const data = await resp.json();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-plus"></i> Add This Section\'s Students';
+
+    if (data.success) {
+      result.innerHTML = '<p class="ok-msg"><i class="fas fa-check-circle"></i> '+data.message+'</p>';
+      appendRowToHall(data.seating, hall);
+
+      // Check remaining
+      try {
+        const r2 = await fetch('/admin/seating/remaining?year='+year+'&section='+section);
+        const d2 = await r2.json();
+        if (d2.success) {
+          if (d2.remaining > 0) {
+            showAI('✅ Row added to Hall '+hall+'!\n\n'+year+' Year – Sec '+section+
+              ': '+d2.remaining+' students still remaining.\nNext: '+d2.nextReg+'\n\n'+
+              'Continue remaining '+d2.remaining+' in this same hall?',
+              ()=>{ document.getElementById('manCount').value = d2.remaining; });
+          } else {
+            showAI('✅ All students of '+year+' Year – Sec '+section+' allocated!\n\n'+
+              'Add another section to Hall '+hall+', or click "This Hall is Complete".',
+              null, 'OK');
+          }
+        }
+      } catch(e){}
+    } else {
+      result.innerHTML = '<p class="err-msg"><i class="fas fa-times-circle"></i> '+data.message+'</p>';
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-plus"></i> Add This Section\'s Students';
+    result.innerHTML = errMsg('Network error: '+e.message);
+  }
+}
+
+// ── APPEND ROW TO HALL CARD ───────────────────────────────────────────────────
+function appendRowToHall(s, hall) {
+  const cardId = 'liveHall-' + hall.replace(/[^a-zA-Z0-9]/g,'_');
+  let card = document.getElementById(cardId);
+
+  if (!card) {
+    // Create new hall card
+    const area = document.getElementById('liveHallsArea');
+    card = document.createElement('div');
+    card.className = 'dash-card';
+    card.id = cardId;
+    card.style.marginBottom = '1.25rem';
+    card.innerHTML =
+      '<div class="dash-card-header">' +
+        '<h3><i class="fas fa-door-closed"></i> Hall: <strong>'+hall+'</strong> ' +
+          '<span class="badge-year" id="'+cardId+'-seccount">1 section</span></h3>' +
+        '<div style="display:flex;gap:0.5rem;">' +
+          '<a href="#" onclick="openHallPdf(\''+encodeURIComponent(hall)+'\'); return false;" class="btn-pdf btn-sm">' +
+            '<i class="fas fa-file-pdf"></i> Download PDF</a>' +
+          '<a href="#" onclick="openHallSheet(\''+encodeURIComponent(hall)+'\'); return false;" class="btn-secondary btn-sm">' +
+            '<i class="fas fa-eye"></i> View</a>' +
+        '</div>' +
+      '</div>' +
+      '<div class="table-wrapper">' +
+        '<table class="data-table">' +
+          '<thead><tr><th>#</th><th>Year/Sec</th><th>Hall No</th><th>Start Reg</th><th>End Reg</th>' +
+          '<th>Seat</th><th>Total</th><th>Session</th><th>Exam</th><th>Del</th></tr></thead>' +
+          '<tbody id="'+cardId+'-tbody"></tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div class="grand-total-bar" id="'+cardId+'-total">' +
+        '<span>Hall '+hall+' Total:</span><strong id="'+cardId+'-totalnum">0</strong> students' +
+      '</div>';
+    area.appendChild(card);
+  }
+
+  const tbody = document.getElementById(cardId+'-tbody');
+  const rowNum = tbody.querySelectorAll('tr').length + 1;
+  const seatEnd = (s.seatStart||1) + s.totalStudents - 1;
+  const sesBg = s.examSession==='AN' ? '#6a1b9a' : '#1565c0';
+
+  const tr = document.createElement('tr');
+  tr.id = 'row-' + s._id;
+  tr.dataset.id = s._id;
+  tr.innerHTML =
+    '<td>'+rowNum+'</td>' +
+    '<td><span class="badge-year">'+(s.year || '').toString().toUpperCase()+' '+(s.section || '').toString().toUpperCase()+'</span></td>' +
+    '<td class="editable-cell" data-field="hallNumber" data-id="'+s._id+'">' +
+      '<span class="cell-val"><code>'+(s.hallNumber || '-')+'</code></span>' +
+      '<input class="cell-input form-input" style="display:none;" value="'+(s.hallNumber || '')+'">' +
+    '</td>' +
+    '<td class="editable-cell" data-field="startRegister" data-id="'+s._id+'">' +
+      '<span class="cell-val"><code>'+s.startRegister+'</code></span>' +
+      '<input class="cell-input form-input" style="display:none;" value="'+s.startRegister+'">' +
+    '</td>' +
+    '<td class="editable-cell" data-field="endRegister" data-id="'+s._id+'">' +
+      '<span class="cell-val"><code>'+s.endRegister+'</code></span>' +
+      '<input class="cell-input form-input" style="display:none;" value="'+s.endRegister+'">' +
+    '</td>' +
+    '<td class="editable-cell" data-field="seatStart" data-id="'+s._id+'">' +
+      '<span class="cell-val"><strong>'+(s.seatStart||1)+'–'+seatEnd+'</strong></span>' +
+      '<input class="cell-input form-input" type="number" style="display:none;" value="'+(s.seatStart||1)+'">' +
+    '</td>' +
+    '<td class="editable-cell" data-field="totalStudents" data-id="'+s._id+'">' +
+      '<span class="cell-val"><strong>'+s.totalStudents+'</strong></span>' +
+      '<input class="cell-input form-input" type="number" style="display:none;" value="'+s.totalStudents+'">' +
+    '</td>' +
+    '<td><span class="badge-year" style="background:'+sesBg+'">'+(s.examSession||'FN')+'</span></td>' +
+    '<td class="editable-cell" data-field="examName" data-id="'+s._id+'">' +
+      '<span class="cell-val"><small>'+s.examName+'</small></span>' +
+      '<input class="cell-input form-input" style="display:none;" value="'+s.examName+'">' +
+    '</td>' +
+    '<td style="white-space:nowrap;">' +
+      '<button class="btn-icon btn-icon--blue" title="Edit" onclick="toggleEdit(\''+s._id+'\')">' +
+        '<i class="fas fa-edit" id="edit-icon-'+s._id+'"></i>' +
+      '</button>' +
+      '<button class="btn-icon btn-icon--green" title="Save" style="display:none;" id="save-btn-'+s._id+'" onclick="saveRow(\''+s._id+'\')">' +
+        '<i class="fas fa-check"></i>' +
+      '</button>' +
+      '<form action="/admin/seating/delete/'+s._id+'" method="POST" onsubmit="return confirm(\'Delete?\')" style="display:inline;">' +
+        '<button type="submit" class="btn-icon btn-icon--red"><i class="fas fa-trash"></i></button>' +
+      '</form>' +
+    '</td>';
+  tbody.appendChild(tr);
+
+  // Update section count and total
+  const secCount = document.getElementById(cardId+'-seccount');
+  if (secCount) secCount.textContent = rowNum + ' section' + (rowNum>1?'s':'');
+  const totalEl = document.getElementById(cardId+'-totalnum');
+  if (totalEl) totalEl.textContent = parseInt(totalEl.textContent||0) + s.totalStudents;
+}
+
+function setRowViewMode(row) {
+  if (!row) return;
+  row.querySelectorAll('.editable-cell').forEach(c => {
+    const val = c.querySelector('.cell-val');
+    const inp = c.querySelector('.cell-input');
+    if (val) val.style.display = '';
+    if (inp) inp.style.display = 'none';
+  });
+  const saveBtn = row.querySelector('[id^="save-btn-"]');
+  const editBtn = row.querySelector('[id^="edit-icon-"]');
+  if (saveBtn) saveBtn.style.display = 'none';
+  if (editBtn) editBtn.closest('button').style.display = '';
+}
+
+function setAllRowsViewMode() {
+  document.querySelectorAll('tr[id^="row-"]').forEach(setRowViewMode);
+}
+
+// ── HALL ACTIONS ──────────────────────────────────────────────────────────────
+function _getDateRangeQuery() {
+    const from = document.getElementById('globalDate').value;
+    const to   = document.getElementById('globalEndDate').value;
+    if (!from || !to) return '';
+    return '?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+  }
+
+  function openHallPdf(encodedHall) {
+    const hall = decodeURIComponent(encodedHall);
+    const from = document.getElementById('globalDate').value;
+    const to   = document.getElementById('globalEndDate').value;
+    if (!from || !to) {
+      alert('Select both Exam Start Date and End Date before downloading the PDF.');
+      return;
+    }
+    const normalizedHall = hall.toUpperCase();
+    const url = '/admin/hallsheet/pdf/' + encodeURIComponent(normalizedHall) + '?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+    window.open(url, '_blank');
+  }
+
+  function openHallSheet(encodedHall) {
+    const hall = decodeURIComponent(encodedHall).toUpperCase();
+    const from = document.getElementById('globalDate').value;
+    const to   = document.getElementById('globalEndDate').value;
+    let url = '/admin/hallsheet/' + encodeURIComponent(hall);
+    if (from && to) {
+      url += '?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+    }
+    window.location.href = url;
+  }
+
+  function openDeptNotice() {
+    const year = document.querySelector('select[name="year"]').value;
+    const from = document.getElementById('globalDate').value;
+    const to   = document.getElementById('globalEndDate').value;
+    if (!from || !to) {
+      alert('Select both Exam Start Date and End Date before opening the Dept Notice.');
+      return;
+    }
+    const params = [];
+    if (year) params.push('year=' + encodeURIComponent(year));
+    params.push('from=' + encodeURIComponent(from));
+    params.push('to=' + encodeURIComponent(to));
+    window.location.href = '/admin/deptnotice' + (params.length ? '?' + params.join('&') : '');
+  }
+
+  function finishHall() {
+    const hall = document.getElementById('globalHall').value.trim().toUpperCase();
+    document.getElementById('globalHall').value = hall;
+    const msg2 = document.getElementById('hallActionMsg');
+    if (!hall) { msg2.innerHTML = errMsg('Enter Hall Number first.'); return; }
+    showAI(
+      'Hall '+hall+' is complete.\n\nDownload the hall PDF now?\n(Shows all sections with register number ranges and seat numbers)',
+      () => {
+        openHallPdf(encodeURIComponent(hall));
+      msg2.innerHTML = '<p class="ok-msg"><i class="fas fa-file-pdf"></i> Hall '+hall+' PDF opened.</p>';
+    }
+  );
+}
+
+function startNextHall() {
+  const cur = document.getElementById('globalHall').value.trim();
+  const msg2 = document.getElementById('hallActionMsg');
+  showAI(
+    'Current hall: '+(cur||'(none)')+'\n\nPrevious hall data is SAVED and visible above.\n\n'+
+    'Clear the hall number field so you can enter the next hall number?',
+    () => {
+      document.getElementById('globalHall').value = '';
+      document.getElementById('globalHall').focus();
+      msg2.innerHTML = '<p class="ok-msg"><i class="fas fa-check-circle"></i> Hall cleared. Enter new hall number and add sections.</p>';
+    }
+  );
+}
+
+// ── INLINE EDIT ───────────────────────────────────────────────────────────────
+function toggleEdit(id) {
+  const row    = document.getElementById('row-'+id);
+  const cells  = row.querySelectorAll('.editable-cell');
+  const saveBtn= document.getElementById('save-btn-'+id);
+  const icon   = document.getElementById('edit-icon-'+id);
+  const editing= saveBtn.style.display !== 'none';
+  cells.forEach(c => {
+    const val = c.querySelector('.cell-val');
+    const inp = c.querySelector('.cell-input');
+    if (editing) {
+      if (val) val.style.display = '';
+      inp.style.display = 'none';
+      saveBtn.style.display = 'none';
+      icon.className = 'fas fa-edit';
+    } else {
+      if (val) val.style.display = 'none';
+      inp.style.display = '';
+      inp.style.padding='0.3rem 0.5rem';
+      inp.style.fontSize='0.82rem';
+      inp.style.minWidth='80px';
+      saveBtn.style.display = '';
+      icon.className = 'fas fa-times';
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadSeatingFormState();
+  setAllRowsViewMode();
+  ['globalExam','globalHall','globalDate','globalEndDate','globalSession'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', saveSeatingFormState);
+  });
+});
+
+async function saveRow(id) {
+  const row   = document.getElementById('row-'+id);
+  const cells = row.querySelectorAll('.editable-cell');
+  const body  = {};
+  cells.forEach(c => {
+    const raw = c.querySelector('.cell-input').value;
+    const key = c.dataset.field;
+    body[key] = key === 'hallNumber' || key === 'section' || key === 'year' ? raw.toUpperCase() : raw;
+  });
+  try {
+    const resp = await fetch('/admin/seating/update/'+id, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+    });
+    const data = await resp.json();
+    if (data.success) {
+      showToast('✅ Saved! Reloading to show cascade updates...','ok');
+      // Reload so cascaded seat/reg numbers are visible across all halls
+      setTimeout(() => location.reload(), 1200);
+    } else showToast('❌ '+data.message,'err');
+  } catch(e){ showToast('Error: '+e.message,'err'); }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function errMsg(t){ return '<p class="err-msg"><i class="fas fa-times-circle"></i> '+t+'</p>'; }
+function showToast(t,type){
+  let el=document.getElementById('seatToast');
+  if(!el){el=document.createElement('div');el.id='seatToast';
+    el.style.cssText='position:fixed;bottom:2rem;right:2rem;padding:0.85rem 1.4rem;border-radius:8px;font-weight:700;font-size:0.9rem;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);transition:opacity .4s;pointer-events:none;';
+    document.body.appendChild(el);}
+  el.textContent=t; el.style.background=type==='ok'?'#2e7d32':'#c62828';
+  el.style.color='#fff'; el.style.opacity='1';
+  clearTimeout(el._t); el._t=setTimeout(()=>el.style.opacity='0',3500);
+}
+</script>
+<%- include('../partials/footer') %>

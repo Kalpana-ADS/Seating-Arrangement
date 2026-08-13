@@ -1,0 +1,175 @@
+<%- include('../partials/header') %>
+<div class="admin-layout">
+  <%- include('../partials/sidebar', { currentPage: 'seating' }) %>
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <h2 class="topbar-title"><i class="fas fa-print"></i> Hall Sheet — Hall <%= hall %></h2>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-user"><i class="fas fa-user-circle"></i> <%= adminName || 'Admin' %></span>
+      </div>
+    </div>
+    
+    <!-- College Banner -->
+    <div class="admin-college-banner">
+      <img src="/images/logo.png" alt="PEC" class="admin-banner-logo" onerror="this.style.display='none';">
+      <div class="admin-banner-text">
+        <div class="admin-banner-name">PANIMALAR ENGINEERING COLLEGE</div>
+        <div class="admin-banner-sub">(Autonomous Institution) &nbsp;·&nbsp; Dept. of AI &amp; Data Science</div>
+      </div>
+    </div>
+    <div class="admin-content">
+
+      <!-- Hall Selector -->
+      <div class="dash-card" style="margin-bottom:1.25rem;">
+        <div class="filter-row" style="gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+          <div class="form-group" style="flex:1;margin:0;">
+            <label>Select Hall</label>
+            <select class="form-select" onchange="if(this.value) window.location='/admin/hallsheet/'+this.value+'<%= dateFrom && dateTo ? '?from=' + encodeURIComponent(dateFrom) + '&to=' + encodeURIComponent(dateTo) : '' %>'">
+              <option value="">-- Choose Hall --</option>
+              <% allHalls.filter(h=>h).sort().forEach(h => { %>
+                <option value="<%= h %>" <%= h===hall?'selected':'' %>><%= h %></option>
+              <% }) %>
+            </select>
+          </div>
+          <a href="/admin/hallsheet/pdf/<%= encodeURIComponent(hall) %><%= dateFrom && dateTo ? '?from=' + encodeURIComponent(dateFrom) + '&to=' + encodeURIComponent(dateTo) : '' %>" class="btn-pdf">
+            <i class="fas fa-file-pdf"></i> Download Hall PDF
+          </a>
+          <a href="/admin/seating" class="btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
+        </div>
+      </div>
+
+      <!-- Hall Sheet Preview -->
+      <div class="dash-card" id="hallSheetPrint">
+        <!-- Print Header -->
+        <div style="text-align:center;border-bottom:3px solid #0d1b4b;padding-bottom:1rem;margin-bottom:1rem;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:0.75rem;margin-bottom:0.4rem;"><img src="/images/logo.png" alt="PEC" style="width:60px;height:60px;object-fit:contain;" onerror="this.style.display='none';"></div><div style="font-size:1.3rem;font-weight:800;color:#0d1b4b;font-family:'Playfair Display',serif;">PANIMALAR ENGINEERING COLLEGE</div>
+          <div style="font-size:0.9rem;color:#444;">(Autonomous Institution) — Dept. of Artificial Intelligence and Data Science</div>
+          <div style="margin-top:0.6rem;font-size:1.1rem;font-weight:700;color:#000;">
+            HALL SEATING ARRANGEMENT &nbsp;|&nbsp; <span style="color:#c8a84b;">HALL NO: <%= hall %></span>
+          </div>
+          <% const displayHallDateRange = dateFrom && dateTo
+              ? `${new Date(dateFrom).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'})} - ${new Date(dateTo).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'})}`
+              : new Date(examDate).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
+          %>
+          <div style="font-size:0.88rem;color:#555;margin-top:0.3rem;">
+            Exam: <%= examName %> &nbsp;|&nbsp;
+            Date: <%= displayHallDateRange %>
+            &nbsp;|&nbsp; Generated: <%= new Date().toLocaleString('en-IN') %>
+          </div>
+        </div>
+
+        <% if (seatings.length === 0) { %>
+          <div class="empty-mini" style="padding:3rem;text-align:center;">
+            <i class="fas fa-door-open" style="font-size:3rem;color:#ccc;display:block;margin-bottom:1rem;"></i>
+            <p>No students assigned to Hall <strong><%= hall %></strong>.</p>
+            <p>Assign hall numbers in the Seating Arrangement page.</p>
+          </div>
+        <% } else { %>
+        <!-- Summary row per section -->
+        <% let grandTotal = 0; %>
+        <% seatings.forEach((s, si) => { %>
+          <% const seatEnd = (s.seatStart || 1) + s.totalStudents - 1; %>
+          <% grandTotal += s.totalStudents; %>
+
+          <!-- Section header bar -->
+          <div style="background:#0d1b4b;color:#fff;padding:0.5rem 1rem;margin-top:<%=si===0?'0':'1rem'%>;border-radius:6px 6px 0 0;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+            <span style="font-weight:800;font-size:0.9rem;"><%= (s.year || '').toString().toUpperCase() %> Year — Section <%= (s.section || '').toString().toUpperCase() %></span>
+            <span style="color:#c8a84b;font-size:0.82rem;">Reg: <%= s.startRegister %> – <%= s.endRegister %></span>
+            <span style="color:rgba(255,255,255,0.75);font-size:0.82rem;">Seats: <%= s.seatStart %> – <%= seatEnd %></span>
+            <span style="margin-left:auto;background:#c8a84b;color:#0d1b4b;padding:0.1rem 0.6rem;border-radius:3px;font-weight:800;font-size:0.78rem;">Count: <%= s.totalStudents %></span>
+          </div>
+
+          <!-- Individual student table for this section row -->
+          <div class="table-wrapper" style="margin-bottom:0;">
+            <table class="seating-table" style="width:100%;border-radius:0 0 6px 6px;">
+              <thead>
+                <tr>
+                  <th style="width:60px;">Seat No</th>
+                  <th style="width:200px;">Roll No / Register No</th>
+                  <th>Student Name</th>
+                  <th style="width:90px;">Year/Sec</th>
+                  <th style="width:130px;">Signature</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%
+                  // Generate individual rows for each seat in this section's range
+                  for (let k = 0; k < s.totalStudents; k++) {
+                    const seatNum = (s.seatStart || 1) + k;
+                %>
+                <tr style="<%=k%2===0?'background:#f9faff;':''%>">
+                  <td style="font-weight:800;color:#0d1b4b;text-align:center;font-size:1rem;">
+                    <%= seatNum %>
+                  </td>
+                  <td style="font-family:monospace;font-size:0.85rem;color:#1a2f7a;text-align:center;">
+                    <!-- Register number shown: startRegister incremented per seat -->
+                    <%
+                      // Try to compute register number by incrementing the numeric suffix
+                      const baseReg = s.startRegister;
+                      const numMatch = baseReg.match(/(\d+)$/);
+                      let displayReg = baseReg;
+                      if (numMatch) {
+                        const prefix = baseReg.slice(0, baseReg.length - numMatch[1].length);
+                        const num    = parseInt(numMatch[1]) + k;
+                        displayReg   = prefix + String(num).padStart(numMatch[1].length, '0');
+                      }
+                    %>
+                    <%= displayReg %>
+                  </td>
+                  <td style="font-size:0.88rem;color:#111;">
+                    <!-- Name shown blank — will be printed from DB via PDF -->
+                    <span style="color:#bbb;font-size:0.78rem;font-style:italic;">
+                      (see PDF for name)
+                    </span>
+                  </td>
+                  <td style="text-align:center;">
+                    <span class="badge-year" style="font-size:0.72rem;"><%= (s.year || '').toString().toUpperCase() %> <%= (s.section || '').toString().toUpperCase() %></span>
+                  </td>
+                  <td style="min-width:120px;"></td>
+                </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        <% }) %>
+
+        <!-- Grand Total -->
+        <div style="background:#0d1b4b;color:#fff;padding:0.75rem 1.5rem;border-radius:6px;margin-top:1rem;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-weight:700;font-size:0.95rem;">TOTAL STUDENTS IN HALL <%= hall %></span>
+          <span style="color:#f0d080;font-size:1.3rem;font-weight:800;"><%= grandTotal %></span>
+        </div>
+
+        <!-- Signature row -->
+        <div style="display:flex;justify-content:space-between;margin-top:2.5rem;padding-top:1rem;border-top:1px dashed #ccc;">
+          <div style="font-size:0.9rem;color:#333;">
+            Invigilator Signature: _________________________________
+          </div>
+          <div style="font-size:0.9rem;color:#333;">
+            Hall Superintendent Signature: _________________________________
+          </div>
+        </div>
+        <% } %>
+      </div>
+
+      <!-- Other Halls Quick Links -->
+      <% if (allHalls.filter(h=>h).length > 1) { %>
+      <div class="dash-card" style="margin-top:1.25rem;">
+        <div class="dash-card-header"><h3><i class="fas fa-door-open"></i> Other Halls</h3></div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;padding:0.5rem;">
+          <% allHalls.filter(h=>h).sort().forEach(h => { %>
+            <a href="/admin/hallsheet/<%= encodeURIComponent(h) %>"
+               class="btn-secondary btn-sm <%= h===hall?'btn-primary':'' %>">
+              <i class="fas fa-door-open"></i> <%= h %>
+            </a>
+          <% }) %>
+        </div>
+      </div>
+      <% } %>
+
+    </div>
+  </div>
+</div>
+<%- include('../partials/footer') %>

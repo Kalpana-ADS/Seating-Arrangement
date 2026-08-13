@@ -1,0 +1,128 @@
+<%- include('../partials/header') %>
+<div class="public-page">
+  <div class="top-banner">
+    <span><i class="fas fa-phone"></i> +91-44-26490404</span>
+    <span><i class="fas fa-envelope"></i> principal@panimalar.ac.in</span>
+    <span><i class="fas fa-map-marker-alt"></i> Poonamallee, Chennai – 600 123</span>
+  </div>
+
+  <header class="college-header">
+    <div class="header-inner">
+      <div class="college-logo-wrap">
+        <img src="/images/logo.png" alt="Panimalar Engineering College"
+             class="college-logo-img"
+             onerror="this.onerror=null;this.style.display='none';document.getElementById('pubLogoFallback').style.display='flex';">
+        <div id="pubLogoFallback" class="college-emblem" style="display:none;">
+          <i class="fas fa-university"></i>
+        </div>
+      </div>
+      <div class="college-info">
+        <h1 class="college-name">PANIMALAR ENGINEERING COLLEGE</h1>
+        <p class="college-auto">(Autonomous Institution)</p>
+        <p class="college-dept">Department of Artificial Intelligence and Data Science</p>
+        <p class="college-accred">
+          <span class="badge-accred">NAAC A+</span>
+          <span class="badge-accred">NBA Accredited</span>
+          <span class="badge-accred">Autonomous</span>
+          <span class="badge-accred">Jaisakthi Educational Trust</span>
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <nav class="main-nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-link active">Home</a>
+      <a href="/seating/view/II"  class="nav-link">II Year</a>
+      <a href="/seating/view/III" class="nav-link">III Year</a>
+      <a href="/seating/view/IV"  class="nav-link">IV Year</a>
+      <a href="/admin/login" class="nav-link nav-admin"><i class="fas fa-lock"></i> Admin Login</a>
+    </div>
+  </nav>
+
+  <section class="hero-section">
+    <div class="hero-content">
+      <div class="hero-badge"><i class="fas fa-shield-alt"></i> Official Examination Portal</div>
+      <h2 class="hero-title">Exam Seating<br>Arrangement System</h2>
+      <p class="hero-sub">Internal Assessment & University Examination Hall Allocation</p>
+      <p class="hero-desc">Access your official seating arrangement for upcoming examinations.<br>Select your year below to view hall allocation details.</p>
+    </div>
+  </section>
+
+  <div class="notice-strip">
+    <div class="notice-inner">
+      <span class="notice-label"><i class="fas fa-bell"></i> NOTICE:</span>
+      <div class="notice-scroll">Students are requested to carry their Hall Ticket and College ID Card. &nbsp;&nbsp;&nbsp; Report 15 minutes before exam. &nbsp;&nbsp;&nbsp; Mobile phones strictly prohibited inside examination halls.</div>
+    </div>
+  </div>
+
+  <section class="year-section">
+    <div class="section-header">
+      <h3 class="section-title">Select Your Academic Year</h3>
+      <p class="section-sub">Click your year to view the seating arrangement</p>
+    </div>
+    <div class="year-cards">
+      <a href="/seating/view/II" class="year-card">
+        <div class="year-card-icon"><i class="fas fa-graduation-cap"></i></div>
+        <div class="year-card-roman">II</div>
+        <div class="year-card-label">Second Year</div>
+        <div class="year-card-sub">Semester III & IV</div>
+        <div class="year-card-arrow"><i class="fas fa-arrow-right"></i></div>
+      </a>
+      <a href="/seating/view/III" class="year-card year-card--green">
+        <div class="year-card-icon"><i class="fas fa-graduation-cap"></i></div>
+        <div class="year-card-roman">III</div>
+        <div class="year-card-label">Third Year</div>
+        <div class="year-card-sub">Semester V & VI</div>
+        <div class="year-card-arrow"><i class="fas fa-arrow-right"></i></div>
+      </a>
+      <a href="/seating/view/IV" class="year-card year-card--maroon">
+        <div class="year-card-icon"><i class="fas fa-graduation-cap"></i></div>
+        <div class="year-card-roman">IV</div>
+        <div class="year-card-label">Fourth Year</div>
+        <div class="year-card-sub">Semester VII & VIII</div>
+        <div class="year-card-arrow"><i class="fas fa-arrow-right"></i></div>
+      </a>
+    </div>
+  </section>
+
+  <section class="info-section">
+    <div class="info-grid">
+      <div class="info-card"><i class="fas fa-clock"></i><h4>Exam Timings</h4><p>FN: 8:15 AM – 11:15 AM<br>AN: 12:15 PM – 3:15 PM</p></div>
+      <div class="info-card"><i class="fas fa-id-card"></i><h4>Documents Required</h4><p>Hall Ticket + College ID Card</p></div>
+      <div class="info-card"><i class="fas fa-ban"></i><h4>Prohibited Items</h4><p>Mobile phones, Bluetooth devices, Smart watches</p></div>
+      <div class="info-card"><i class="fas fa-phone-alt"></i><h4>Exam Cell Contact</h4><p>+91-44-26490404<br>examcell@panimalar.ac.in</p></div>
+    </div>
+  </section>
+
+  <footer class="college-footer">
+    <div class="footer-inner">
+      <div class="footer-col">
+        <div class="footer-logo-wrap">
+          <img src="/images/logo.png" alt="PEC" class="footer-logo"
+               onerror="this.style.display='none';">
+        </div>
+        <h5>Panimalar Engineering College</h5>
+        <p>Bangalore Trunk Road, Poonamallee<br>Chennai – 600 123, Tamil Nadu</p>
+      </div>
+      <div class="footer-col">
+        <h5>Quick Links</h5>
+        <a href="/">Home</a>
+        <a href="/admin/login">Admin Portal</a>
+        <a href="/seating/view/II">II Year Seating</a>
+        <a href="/seating/view/III">III Year Seating</a>
+        <a href="/seating/view/IV">IV Year Seating</a>
+      </div>
+      <div class="footer-col">
+        <h5>Contact</h5>
+        <p><i class="fas fa-phone"></i> +91-44-26490404</p>
+        <p><i class="fas fa-envelope"></i> principal@panimalar.ac.in</p>
+        <p><i class="fas fa-globe"></i> www.panimalar.ac.in</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2024–2025 Panimalar Engineering College — Jaisakthi Educational Trust. All Rights Reserved. | Examination Cell</p>
+    </div>
+  </footer>
+</div>
+<%- include('../partials/footer') %>

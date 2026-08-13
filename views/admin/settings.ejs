@@ -1,0 +1,246 @@
+<%- include('../partials/header') %>
+<div class="admin-layout">
+  <%- include('../partials/sidebar', { currentPage: 'settings' }) %>
+
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <h2 class="topbar-title"><i class="fas fa-cog"></i> Settings</h2>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-user"><i class="fas fa-user-circle"></i> <%= adminName %></span>
+      </div>
+    </div>
+
+    
+    <!-- College Banner -->
+    <div class="admin-college-banner">
+      <img src="/images/logo.png" alt="PEC" class="admin-banner-logo" onerror="this.style.display='none';">
+      <div class="admin-banner-text">
+        <div class="admin-banner-name">PANIMALAR ENGINEERING COLLEGE</div>
+        <div class="admin-banner-sub">(Autonomous Institution) &nbsp;·&nbsp; Dept. of AI &amp; Data Science</div>
+      </div>
+    </div>
+    <div class="admin-content">
+      <% if(error&&error.length){%><div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%=error[0]%></div><%}%>
+      <% if(success&&success.length){%><div class="alert alert-success"><i class="fas fa-check-circle"></i> <%=success[0]%></div><%}%>
+
+      <div class="dashboard-grid">
+
+        <!-- Logo Settings -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3><i class="fas fa-image"></i> College Logo</h3>
+          </div>
+
+          <!-- Current Logo Preview -->
+          <div class="settings-logo-preview">
+            <div class="slp-label">Current Logo</div>
+            <div class="slp-frame">
+              <img id="currentLogoImg" src="/images/logo.png" alt="Current Logo"
+                   onerror="this.style.display='none';document.getElementById('noLogoMsg').style.display='block';">
+              <div id="noLogoMsg" style="display:none;color:#aaa;font-size:0.85rem;text-align:center;padding:1rem;">
+                <i class="fas fa-image" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+                No logo uploaded
+              </div>
+            </div>
+            <div class="slp-usage">
+              Used in: Navbar &nbsp;·&nbsp; Sidebar &nbsp;·&nbsp; Login Page &nbsp;·&nbsp;
+              Reports &nbsp;·&nbsp; PDF Exports &nbsp;·&nbsp; Printable Sheets
+            </div>
+          </div>
+
+          <!-- Upload New Logo -->
+          <form action="/admin/settings/upload-logo" method="POST" enctype="multipart/form-data" id="logoForm">
+            <div class="form-group" style="margin-top:1.25rem;">
+              <label>Upload New Logo</label>
+              <div class="file-drop-zone" id="logoDrop" onclick="document.getElementById('logoFile').click()">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Drag & drop or <strong>click to browse</strong></p>
+                <small>PNG, JPG, SVG — Max 5MB — Recommended: square image (200×200px+)</small>
+                <input type="file" id="logoFile" name="logo" accept=".png,.jpg,.jpeg,.svg,.gif"
+                       style="display:none;" onchange="previewLogo(this)">
+              </div>
+            </div>
+
+            <!-- Live Preview -->
+            <div id="newLogoPreviewWrap" style="display:none;margin-bottom:1rem;">
+              <div class="slp-label">New Logo Preview</div>
+              <div class="settings-preview-grid">
+                <div class="spg-item">
+                  <div class="spg-label">Sidebar (38px)</div>
+                  <img id="prev38" class="prev-sidebar">
+                </div>
+                <div class="spg-item">
+                  <div class="spg-label">Header (90px)</div>
+                  <img id="prev90" class="prev-header">
+                </div>
+                <div class="spg-item">
+                  <div class="spg-label">Login (110px)</div>
+                  <img id="prev110" class="prev-login">
+                </div>
+                <div class="spg-item">
+                  <div class="spg-label">Footer (50px)</div>
+                  <img id="prev50" class="prev-footer">
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:0.75rem;">
+              <button type="submit" class="btn-primary" id="uploadLogoBtn" disabled>
+                <i class="fas fa-upload"></i> Upload & Apply Logo
+              </button>
+              <button type="button" class="btn-secondary" onclick="resetPreview()">
+                <i class="fas fa-undo"></i> Reset
+              </button>
+            </div>
+          </form>
+
+          <!-- Logo Sizing Info -->
+          <div class="settings-info-box" style="margin-top:1.25rem;">
+            <div class="sib-title"><i class="fas fa-info-circle"></i> Logo Usage Guide</div>
+            <table class="mini-table">
+              <thead><tr><th>Location</th><th>Size</th><th>Shape</th></tr></thead>
+              <tbody>
+                <tr><td>Sidebar header</td><td>38 × 38 px</td><td>Circle</td></tr>
+                <tr><td>Public navbar</td><td>90 × 90 px</td><td>Circle</td></tr>
+                <tr><td>Login page</td><td>110 × 110 px</td><td>Circle</td></tr>
+                <tr><td>Footer</td><td>50 × 50 px</td><td>Rounded</td></tr>
+                <tr><td>PDF reports</td><td>60 × 60 px</td><td>Inline</td></tr>
+                <tr><td>XLSX reports</td><td>Row height</td><td>Inline</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3><i class="fas fa-info-circle"></i> System Information</h3>
+          </div>
+          <table class="mini-table">
+            <tbody>
+              <tr><td><strong>College</strong></td><td>Panimalar Engineering College</td></tr>
+              <tr><td><strong>Department</strong></td><td>AI & Data Science</td></tr>
+              <tr><td><strong>System</strong></td><td>Exam Seating & Attendance Portal</td></tr>
+              <tr><td><strong>Version</strong></td><td>v3.0 (2024–2025)</td></tr>
+              <tr><td><strong>Node.js</strong></td><td><%= process.version %></td></tr>
+            </tbody>
+          </table>
+
+          <div class="dash-card-header" style="margin-top:1.5rem;">
+            <h3><i class="fas fa-palette"></i> Logo Display Locations</h3>
+          </div>
+          <div class="logo-locations-grid">
+            <div class="llg-item">
+              <img src="/images/logo.png" alt="" class="llg-logo" onerror="this.style.display='none';">
+              <span>Sidebar</span>
+            </div>
+            <div class="llg-item">
+              <img src="/images/logo.png" alt="" class="llg-logo llg-lg" onerror="this.style.display='none';">
+              <span>Navbar</span>
+            </div>
+            <div class="llg-item">
+              <img src="/images/logo.png" alt="" class="llg-logo llg-xl" onerror="this.style.display='none';">
+              <span>Login</span>
+            </div>
+            <div class="llg-item">
+              <img src="/images/logo.png" alt="" class="llg-logo" onerror="this.style.display='none';">
+              <span>Footer</span>
+            </div>
+            <div class="llg-item">
+              <img src="/images/logo.png" alt="" class="llg-logo" onerror="this.style.display='none';">
+              <span>PDF Reports</span>
+            </div>
+            <div class="llg-item">
+              <img src="/images/logo.png" alt="" class="llg-logo" onerror="this.style.display='none';">
+              <span>Hall Sheets</span>
+            </div>
+          </div>
+
+          <div class="dash-card-header" style="margin-top:1.5rem;">
+            <h3><i class="fas fa-check-circle"></i> Logo Integration Status</h3>
+          </div>
+          <div id="logoStatusList">
+            <% const locations = [
+              'Public Homepage Header',
+              'Student Portal Navigation',
+              'Admin Sidebar Header',
+              'Login Page (Left Panel)',
+              'Login Page (Form Card)',
+              'Dashboard College Banner',
+              'Seating Arrangement Page',
+              'Hall Sheet Printable',
+              'Dept Notice Board',
+              'Invigilator Allocation Sheet',
+              'Seating PDF Export',
+              'Hall PDF Export',
+              'XLSX Reports',
+              'Footer (All Pages)',
+              'Sidebar Footer'
+            ]; %>
+            <% locations.forEach(loc=>{ %>
+            <div class="logo-status-row">
+              <i class="fas fa-check-circle" style="color:#2e7d32;"></i>
+              <span><%=loc%></span>
+              <span class="logo-status-badge">Active</span>
+            </div>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function previewLogo(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (file.size > 5 * 1024 * 1024) {
+    alert('File too large. Maximum size is 5MB.');
+    input.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const src = e.target.result;
+    document.getElementById('newLogoPreviewWrap').style.display = 'block';
+    ['prev38','prev90','prev110','prev50'].forEach(id => {
+      document.getElementById(id).src = src;
+    });
+    document.getElementById('uploadLogoBtn').disabled = false;
+    document.getElementById('logoDrop').classList.add('has-file');
+    document.getElementById('logoDrop').querySelector('small').textContent = file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetPreview() {
+  document.getElementById('logoFile').value = '';
+  document.getElementById('newLogoPreviewWrap').style.display = 'none';
+  document.getElementById('uploadLogoBtn').disabled = true;
+  document.getElementById('logoDrop').classList.remove('has-file');
+  document.getElementById('logoDrop').querySelector('small').textContent =
+    'PNG, JPG, SVG — Max 5MB — Recommended: square image (200×200px+)';
+}
+
+// Drag and drop
+const drop = document.getElementById('logoDrop');
+const fileInput = document.getElementById('logoFile');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag-over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+drop.addEventListener('drop', e => {
+  e.preventDefault();
+  drop.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+    previewLogo(fileInput);
+  }
+});
+</script>
+<%- include('../partials/footer') %>

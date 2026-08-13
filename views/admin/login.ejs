@@ -1,0 +1,96 @@
+<%- include('../partials/header') %>
+<div class="login-page">
+  <!-- LEFT: Branding Panel -->
+  <div class="login-left">
+    <div class="login-left-content">
+      <div class="login-logo-container">
+        <img src="/images/logo.png" alt="Panimalar Engineering College"
+             class="login-logo-img"
+             onerror="this.style.display='none';document.getElementById('loginLogoFallback').style.display='flex';">
+        <div id="loginLogoFallback" class="login-logo-fallback" style="display:none;">
+          <i class="fas fa-university"></i>
+        </div>
+      </div>
+      <h1 class="login-college-name">PANIMALAR<br>ENGINEERING COLLEGE</h1>
+      <p class="login-college-sub">(Autonomous Institution)</p>
+      <p class="login-dept">Dept. of Artificial Intelligence & Data Science</p>
+      <div class="login-divider"></div>
+      <p class="login-portal-title">Examination Cell<br>Admin Portal</p>
+      <div class="login-badges">
+        <span><i class="fas fa-shield-alt"></i> Secure Access</span>
+        <span><i class="fas fa-lock"></i> Authorized Only</span>
+      </div>
+      <div class="login-accred">
+        <span>NAAC A+</span>
+        <span>NBA Accredited</span>
+        <span>Autonomous</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Login Form -->
+  <div class="login-right">
+    <div class="login-box">
+      <!-- Small logo at top of form -->
+      <div class="login-box-header">
+        <div class="login-box-logo">
+          <img src="/images/logo.png" alt="PEC"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+          <div class="login-box-logo-fallback" style="display:none;">
+            <i class="fas fa-user-shield"></i>
+          </div>
+        </div>
+        <h2>Admin Login</h2>
+        <p>Enter your credentials to access the examination portal</p>
+      </div>
+
+      <% if(error&&error.length){ %>
+        <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%=error[0]%></div>
+      <% } %>
+      <% if(success&&success.length){ %>
+        <div class="alert alert-success"><i class="fas fa-check-circle"></i> <%=success[0]%></div>
+      <% } %>
+
+      <form action="/admin/login" method="POST" class="login-form">
+        <div class="form-group">
+          <label><i class="fas fa-user"></i> Username</label>
+          <input type="text" name="username" class="form-input"
+                 placeholder="Enter admin username" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-lock"></i> Password</label>
+          <div class="password-wrap">
+            <input type="password" id="password" name="password" class="form-input"
+                   placeholder="Enter password" autocomplete="current-password" required>
+            <button type="button" class="toggle-password" onclick="togglePass()">
+              <i class="fas fa-eye" id="eye-icon"></i>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="btn-login">
+          <i class="fas fa-sign-in-alt"></i> Login to Portal
+        </button>
+      </form>
+
+      <div class="login-hint">
+        <i class="fas fa-info-circle"></i>
+        Accounts: <code>admin/admin123</code> &nbsp;|&nbsp;
+        <code>hod/hod@pec123</code> &nbsp;|&nbsp; <code>examcell/exam@2024</code>
+      </div>
+
+      <a href="/" class="login-back">
+        <i class="fas fa-arrow-left"></i> Back to Student Portal
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+function togglePass() {
+  const p = document.getElementById('password');
+  const i = document.getElementById('eye-icon');
+  p.type = p.type==='password' ? 'text' : 'password';
+  i.className = p.type==='password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+}
+</script>
+<%- include('../partials/footer') %>

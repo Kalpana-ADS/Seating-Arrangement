@@ -1,0 +1,160 @@
+<%- include('../partials/header') %>
+
+<div class="admin-layout">
+  <%- include('../partials/sidebar', { currentPage: 'upload' }) %>
+
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <h2 class="topbar-title"><i class="fas fa-upload"></i> Upload Dataset</h2>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-user"><i class="fas fa-user-circle"></i> <%= adminName || 'Admin' %></span>
+      </div>
+    </div>
+
+    
+    <!-- College Banner -->
+    <div class="admin-college-banner">
+      <img src="/images/logo.png" alt="PEC" class="admin-banner-logo" onerror="this.style.display='none';">
+      <div class="admin-banner-text">
+        <div class="admin-banner-name">PANIMALAR ENGINEERING COLLEGE</div>
+        <div class="admin-banner-sub">(Autonomous Institution) &nbsp;·&nbsp; Dept. of AI &amp; Data Science</div>
+      </div>
+    </div>
+    <div class="admin-content">
+      <% if (error && error.length > 0) { %>
+        <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%= error[0] %></div>
+      <% } %>
+      <% if (success && success.length > 0) { %>
+        <div class="alert alert-success"><i class="fas fa-check-circle"></i> <%= success[0] %></div>
+      <% } %>
+
+      <div class="upload-grid">
+        <!-- Upload Form -->
+        <div class="dash-card upload-card">
+          <div class="dash-card-header">
+            <h3><i class="fas fa-file-excel"></i> Upload Student Dataset</h3>
+          </div>
+
+          <form action="/admin/students/upload" method="POST" enctype="multipart/form-data" id="uploadForm">
+            <div class="form-group">
+              <label>Default Year (if not in file)</label>
+              <select name="defaultYear" class="form-select">
+                <option value="II">II Year</option>
+                <option value="III">III Year</option>
+                <option value="IV">IV Year</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Default Section (if not in file)</label>
+              <input type="text" name="defaultSection" placeholder="e.g. A" class="form-input" value="A">
+            </div>
+            <div class="form-group">
+              <label>Select File (Excel or CSV)</label>
+              <div class="file-drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Drag & drop or <strong>click to browse</strong></p>
+                <span id="fileName">No file selected</span>
+                <input type="file" name="dataset" id="fileInput" accept=".xlsx,.xls,.csv" hidden required>
+              </div>
+            </div>
+            <button type="submit" class="btn-primary" id="uploadBtn">
+              <i class="fas fa-upload"></i> Upload & Process
+            </button>
+          </form>
+        </div>
+
+        <!-- Instructions -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3><i class="fas fa-info-circle"></i> File Format Guide</h3>
+          </div>
+          <div class="format-guide">
+            <p>Your Excel/CSV file should have these columns:</p>
+            <table class="mini-table">
+              <thead>
+                <tr><th>Column Name</th><th>Required</th><th>Example</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>register</code> / <code>reg</code> / <code>roll</code></td><td><span class="badge-req">Required</span></td><td>211423243101</td></tr>
+                <tr><td><code>name</code></td><td><span class="badge-opt">Optional</span></td><td>Arun Kumar</td></tr>
+                <tr><td><code>year</code></td><td><span class="badge-opt">Optional</span></td><td>II / 2 / Second</td></tr>
+                <tr><td><code>section</code> / <code>sec</code></td><td><span class="badge-opt">Optional</span></td><td>A</td></tr>
+              </tbody>
+            </table>
+            <div class="format-note">
+              <i class="fas fa-lightbulb"></i>
+              <strong>Tip:</strong> If your file doesn't have year/section columns, set the defaults in the form. The system auto-detects column names.
+            </div>
+            <div class="format-note format-note--blue">
+              <i class="fas fa-info-circle"></i>
+              <strong>Supported formats:</strong> .xlsx, .xls, .csv (max 10MB)
+            </div>
+          </div>
+
+          <!-- Sample Data -->
+          <div class="dash-card-header" style="margin-top:1.5rem;">
+            <h3><i class="fas fa-table"></i> Sample Excel Structure</h3>
+          </div>
+          <table class="mini-table">
+            <thead>
+              <tr><th>name</th><th>registerNumber</th><th>year</th><th>section</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Arun Kumar</td><td>211423243101</td><td>II</td><td>A</td></tr>
+              <tr><td>Priya S</td><td>211423243102</td><td>II</td><td>A</td></tr>
+              <tr><td>Ravi M</td><td>211423243103</td><td>II</td><td>B</td></tr>
+            </tbody>
+          </table>
+
+          <div class="dash-card-header" style="margin-top:1.5rem;">
+            <h3><i class="fas fa-trash-alt"></i> Clear Data</h3>
+          </div>
+          <form action="/admin/students/clear" method="POST" onsubmit="return confirm('Are you sure you want to clear student data?')">
+            <div class="form-group">
+              <select name="year" class="form-select">
+                <option value="">All Years</option>
+                <option value="II">II Year Only</option>
+                <option value="III">III Year Only</option>
+                <option value="IV">IV Year Only</option>
+              </select>
+            </div>
+            <button type="submit" class="btn-danger">
+              <i class="fas fa-trash-alt"></i> Clear Student Data
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileName = document.getElementById('fileName');
+
+fileInput.addEventListener('change', () => {
+  fileName.textContent = fileInput.files[0] ? fileInput.files[0].name : 'No file selected';
+  dropZone.classList.add('has-file');
+});
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  fileInput.files = e.dataTransfer.files;
+  fileName.textContent = fileInput.files[0] ? fileInput.files[0].name : 'No file selected';
+  if (fileInput.files[0]) dropZone.classList.add('has-file');
+});
+
+document.getElementById('uploadForm').addEventListener('submit', () => {
+  document.getElementById('uploadBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+  document.getElementById('uploadBtn').disabled = true;
+});
+</script>
+
+<%- include('../partials/footer') %>

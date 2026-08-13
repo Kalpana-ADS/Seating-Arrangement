@@ -1,0 +1,583 @@
+<%- include('../partials/header') %>
+<div class="admin-layout">
+  <%- include('../partials/sidebar', { currentPage: 'attendance' }) %>
+
+  <div class="admin-main">
+    <!-- Topbar -->
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <h2 class="topbar-title" style="font-size:0.95rem;">
+          <i class="fas fa-clipboard-check"></i>
+          <%=rec.examName%> &nbsp;|&nbsp; <%=rec.year%> Year Sec <%=rec.section%> &nbsp;|&nbsp;
+          <span class="badge-year" style="background:<%=rec.session==='FN'?'#1565c0':'#6a1b9a'%>"><%=rec.session%></span>
+          &nbsp;|&nbsp; <%=new Date(rec.examDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})%>
+          <% if(rec.hallNumber){ %>&nbsp;|&nbsp; Hall: <%=rec.hallNumber%><% } %>
+        </h2>
+      </div>
+      <div class="topbar-right">
+        <a href="/admin/attendance/download/<%=rec._id%>" class="btn-pdf btn-sm">
+          <i class="fas fa-file-pdf"></i> Download PDF
+        </a>
+        <a href="/admin/attendance" class="btn-secondary btn-sm">
+          <i class="fas fa-arrow-left"></i> Back
+        </a>
+        <span class="topbar-user"><i class="fas fa-user-circle"></i> <%=adminName%></span>
+      </div>
+    </div>
+
+    
+    <!-- College Banner -->
+    <div class="admin-college-banner">
+      <img src="/images/logo.png" alt="PEC" class="admin-banner-logo" onerror="this.style.display='none';">
+      <div class="admin-banner-text">
+        <div class="admin-banner-name">PANIMALAR ENGINEERING COLLEGE</div>
+        <div class="admin-banner-sub">(Autonomous Institution) &nbsp;·&nbsp; Dept. of AI &amp; Data Science</div>
+      </div>
+    </div>
+    <div class="admin-content">
+
+      <!-- Live Stats -->
+      <div class="stats-grid" style="margin-bottom:1.25rem;">
+        <div class="stat-card stat-blue">
+          <div class="stat-icon"><i class="fas fa-users"></i></div>
+          <div class="stat-info"><div class="stat-number" id="sTotal"><%=rec.records.length%></div><div class="stat-label">Total</div></div>
+        </div>
+        <div class="stat-card stat-green">
+          <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+          <div class="stat-info"><div class="stat-number" id="sPresent"><%=rec.records.filter(r=>r.status==='Present').length%></div><div class="stat-label">Present</div></div>
+        </div>
+        <div class="stat-card stat-maroon">
+          <div class="stat-icon"><i class="fas fa-user-times"></i></div>
+          <div class="stat-info"><div class="stat-number" id="sAbsent"><%=rec.records.filter(r=>r.status==='Absent').length%></div><div class="stat-label">Absent</div></div>
+        </div>
+        <div class="stat-card" style="border-left-color:#e65100;">
+          <div class="stat-icon" style="color:#e65100;"><i class="fas fa-id-badge"></i></div>
+          <div class="stat-info"><div class="stat-number" id="sOD"><%=rec.records.filter(r=>r.status==='OD').length%></div><div class="stat-label">On Duty (OD)</div></div>
+        </div>
+        <div class="stat-card stat-orange">
+          <div class="stat-icon"><i class="fas fa-clock"></i></div>
+          <div class="stat-info"><div class="stat-number" id="sPending"><%=rec.records.filter(r=>r.status==='Pending').length%></div><div class="stat-label">Pending</div></div>
+        </div>
+        <div class="stat-card" style="border-left-color:#9c27b0;">
+          <div class="stat-icon" style="color:#9c27b0;"><i class="fas fa-percentage"></i></div>
+          <div class="stat-info">
+            <div class="stat-number" id="sPercent">
+              <%
+                const _tot = rec.records.length;
+                const _pre = rec.records.filter(r=>r.status==='Present').length;
+                const _od  = rec.records.filter(r=>r.status==='OD').length;
+                const _pct = _tot ? ((_pre + _od) / _tot * 100).toFixed(1) : '0.0';
+              %>
+              <%=_pct%>%
+            </div>
+            <div class="stat-label">Attendance % <small style="font-size:0.6rem;display:block;color:#888;">(Present+OD)/Total</small></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="att-session-layout">
+
+        <!-- LEFT: Mark Absent Panel -->
+        <div class="att-mark-panel">
+
+          <!-- Search & Mark -->
+          <div class="dash-card" style="margin-bottom:1rem;">
+            <div class="dash-card-header"><h3><i class="fas fa-user-edit"></i> Mark Student Status</h3></div>
+
+            <div class="form-group" style="position:relative;">
+              <label>Search student (Name / Roll No / Register No)</label>
+              <input type="text" id="absSearch" class="form-input"
+                     placeholder="Start typing..." autocomplete="off"
+                     oninput="searchForAbsent()">
+              <div id="absDropdown" class="search-dropdown"></div>
+            </div>
+
+            <!-- Selected Student Card -->
+            <div id="selectedCard" style="display:none;" class="selected-student-card">
+              <div class="sc-header">
+                <i class="fas fa-user-circle sc-icon"></i>
+                <div>
+                  <div id="scName" class="sc-name"></div>
+                  <div id="scMeta" class="sc-meta"></div>
+                </div>
+                <button class="sc-clear" onclick="clearSelected()">✕</button>
+              </div>
+              <div id="scDetails" class="sc-details"></div>
+            </div>
+
+            <div class="form-group" style="margin-top:0.75rem;">
+              <label>Absence Symbol</label>
+              <div class="symbol-buttons">
+                <button class="sym-btn active" id="sym-A"      onclick="selectSymbol('A')">A</button>
+                <button class="sym-btn"        id="sym-AB"     onclick="selectSymbol('AB')">AB</button>
+                <button class="sym-btn"        id="sym-ABSENT" onclick="selectSymbol('ABSENT')">ABSENT</button>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:0.6rem;margin-top:0.1rem;">
+              <button class="btn-danger" style="flex:1;" id="markAbsentBtn"
+                      onclick="markAbsent()" disabled>
+                <i class="fas fa-user-times"></i> Mark Absent
+              </button>
+              <button class="btn-od" style="flex:1;" id="markODBtn"
+                      onclick="markOD()" disabled>
+                <i class="fas fa-id-badge"></i> Mark OD
+              </button>
+            </div>
+            <div id="markMsg" class="manual-result" style="margin-top:0.75rem;"></div>
+          </div>
+
+          <!-- Absent List -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3><i class="fas fa-list-ul"></i> Marked List</h3>
+              <div style="display:flex;gap:0.4rem;">
+                <span class="badge-year" style="background:#c62828;" id="absentBadge" title="Absent">
+                  <%=rec.records.filter(r=>r.status==='Absent').length%> A
+                </span>
+                <span class="badge-year" style="background:#e65100;" id="odBadge" title="On Duty">
+                  <%=rec.records.filter(r=>r.status==='OD').length%> OD
+                </span>
+              </div>
+            </div>
+            <div id="absentListWrap">
+              <% const absentRecs = rec.records.filter(r=>r.status==='Absent'||r.status==='OD'); %>
+              <% if(!absentRecs.length){ %>
+                <div id="noAbsentMsg" class="empty-mini" style="padding:1.5rem;text-align:center;">
+                  <i class="fas fa-check-circle" style="color:#2e7d32;font-size:1.5rem;"></i>
+                  <p style="margin-top:0.5rem;">No absentees yet.</p>
+                </div>
+              <% } %>
+              <div id="absentList">
+                <% absentRecs.forEach((r,i)=>{ %>
+                <div class="absent-item" id="absentItem-<%=String(r.studentId)%>">
+                  <div class="absent-item-info">
+                    <span class="absent-symbol" style="<%=r.status==='OD'?'background:#e65100;':''%>"><%=r.status==='OD'?'OD':(r.absenceSymbol||'A')%></span>
+                    <div>
+                      <strong><%=r.name%></strong>
+                      <div style="font-size:0.78rem;color:#888;"><%=r.rollNo%></div>
+                    </div>
+                  </div>
+                  <button class="btn-icon btn-icon--blue" title="Undo absence"
+                          onclick="undoAbsent('<%=String(r.studentId)%>','')">
+                    <i class="fas fa-undo"></i>
+                  </button>
+                </div>
+                <% }) %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Full Attendance Table -->
+        <div class="att-table-panel">
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3><i class="fas fa-table"></i> Attendance Register
+                <% if(rec.isFinalized){ %>
+                  <span style="color:#2e7d32;font-size:0.78rem;margin-left:0.5rem;">
+                    <i class="fas fa-check-double"></i> FINALIZED
+                  </span>
+                <% } %>
+              </h3>
+              <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                <select id="filterStatus" class="form-select" style="width:auto;" onchange="filterTable()">
+                  <option value="">All</option>
+                  <option value="Present">Present</option>
+                  <option value="Absent">Absent</option>
+                  <option value="OD">On Duty (OD)</option>
+                  <option value="Pending">Pending</option>
+                </select>
+                <input type="text" id="tableSearch" class="form-input" style="width:160px;"
+                       placeholder="Search name/roll..." oninput="filterTable()">
+                <% if(!rec.isFinalized){ %>
+                <button class="btn-primary btn-sm" onclick="markAllPresent()">
+                  <i class="fas fa-users"></i> Mark Remaining Present
+                </button>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="data-table" id="attTable">
+                <thead>
+                  <tr>
+                    <th>S.No</th>
+                    <th>Student Name</th>
+                    <th>Roll No</th>
+                    <th>Register No</th>
+                    <th>Exam</th>
+                    <th>Date</th>
+                    <th>Session</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="attTbody">
+                  <% rec.records.forEach((r,i)=>{ %>
+                  <tr id="tr-<%=String(r.studentId)%>"
+                      data-status="<%=r.status%>"
+                      data-name="<%=r.name.toLowerCase()%>"
+                      data-roll="<%=r.rollNo.toLowerCase()%>"
+                      style="<%=r.status==='Absent'?'background:#fff5f5;':r.status==='OD'?'background:#fff8e1;':r.status==='Present'?'background:#f5fff7;':''%>">
+                    <td><%=i+1%></td>
+                    <td><strong><%=r.name%></strong></td>
+                    <td><code style="font-size:0.8rem;"><%=r.rollNo||'—'%></code></td>
+                    <td><code style="font-size:0.8rem;"><%=r.registerNumber||'—'%></code></td>
+                    <td><small><%=rec.examName%></small></td>
+                    <td><small><%=new Date(rec.examDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})%></small></td>
+                    <td><span class="badge-year" style="font-size:0.7rem;padding:0.1rem 0.4rem;"><%=rec.session%></span></td>
+                    <td id="status-<%=String(r.studentId)%>">
+                      <% if(r.status==='Present'){ %>
+                        <span class="att-status-present"><i class="fas fa-check-circle"></i> Present</span>
+                      <% } else if(r.status==='Absent'){ %>
+                        <span class="att-status-absent"><i class="fas fa-times-circle"></i> <%=r.absenceSymbol||'A'%></span>
+                      <% } else if(r.status==='OD'){ %>
+                        <span class="att-status-od"><i class="fas fa-id-badge"></i> OD</span>
+                      <% } else { %>
+                        <span class="att-status-pending"><i class="fas fa-clock"></i> —</span>
+                      <% } %>
+                    </td>
+                    <td id="action-<%=String(r.studentId)%>" style="white-space:nowrap;">
+                      <% if(r.status==='Absent'||r.status==='OD'){ %>
+                        <button class="btn-icon btn-icon--blue" title="Undo — restore to Pending"
+                                onclick="undoAbsent('<%=String(r.studentId)%>','')">
+                          <i class="fas fa-undo"></i>
+                        </button>
+                      <% } else if(r.status==='Pending'){ %>
+                        <button class="btn-icon btn-icon--red" style="margin-right:2px;" title="Mark Absent"
+                                onclick="quickAbsent('<%=String(r.studentId)%>','','','')">
+                          <i class="fas fa-user-times"></i>
+                        </button>
+                        <button class="btn-icon" style="background:#fff3e0;color:#e65100;" title="Mark OD"
+                                onclick="quickOD('<%=String(r.studentId)%>','')">
+                          <i class="fas fa-id-badge"></i>
+                        </button>
+                      <% } else { %>
+                        <button class="btn-icon" style="background:#e8f5e9;color:#2e7d32;margin-right:2px;" title="Marked Present" disabled>
+                          <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn-icon btn-icon--orange" title="Restore to Pending (correct a mistake)"
+                                onclick="restorePresent('<%=String(r.studentId)%>','')">
+                          <i class="fas fa-undo"></i>
+                        </button>
+                      <% } %>
+                    </td>
+                  </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="att-finalize-bar">
+              <% if(!rec.isFinalized){ %>
+              <div style="font-size:0.85rem;color:#555;">
+                <i class="fas fa-info-circle"></i>
+                Click <strong>Mark Remaining Present</strong> to auto-mark all Pending students as Present and finalize this session.
+              </div>
+              <button class="btn-primary" onclick="markAllPresent()">
+                <i class="fas fa-users"></i> Mark Remaining Students as Present
+              </button>
+              <% } else { %>
+              <div style="color:#2e7d32;font-weight:700;font-size:0.95rem;">
+                <i class="fas fa-check-double"></i>
+                Session finalized on <%=new Date(rec.finalizedAt||rec.updatedAt).toLocaleString('en-IN')%>
+              </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div><!-- att-session-layout -->
+
+    </div>
+  </div>
+</div>
+
+<script>
+const SESSION_ID  = '<%=rec._id%>';
+const EXAM_NAME   = '<%=rec.examName%>';
+const EXAM_DATE   = '<%=new Date(rec.examDate).toLocaleDateString("en-IN")%>';
+const SESSION_TXT = '<%=rec.session%>';
+
+let selectedStudentId   = null;
+let selectedStudentName = null;
+let chosenSymbol = 'A';
+
+// ── Absence symbol selector ───────────────────────────────────────────────
+function selectSymbol(sym) {
+  chosenSymbol = sym;
+  ['A','AB','ABSENT'].forEach(s => {
+    document.getElementById('sym-'+s).classList.toggle('active', s===sym);
+  });
+}
+
+// ── Search for absent marking ─────────────────────────────────────────────
+let absTimer;
+async function searchForAbsent() {
+  const q  = document.getElementById('absSearch').value.trim();
+  const dd = document.getElementById('absDropdown');
+  clearTimeout(absTimer);
+  if (!q) { dd.innerHTML=''; return; }
+  absTimer = setTimeout(async () => {
+    const res  = await fetch(`/admin/attendance/search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    dd.innerHTML = data.map(s =>
+      `<div class="sd-item" onmousedown="selectStudent('${s._id}','${esc(s.name)}','${esc(s.rollNo)}','${esc(s.registerNumber||'')}','${s.year}','${s.section}')">
+        <strong>${s.name}</strong>
+        <span style="color:#888;font-size:0.78rem;"> · ${s.rollNo} · ${s.year} Yr Sec ${s.section}</span>
+      </div>`
+    ).join('') || '<div class="sd-item" style="color:#aaa;text-align:center;">No results</div>';
+  }, 200);
+}
+
+function selectStudent(id, name, roll, reg, year, sec) {
+  document.getElementById('absDropdown').innerHTML='';
+  document.getElementById('absSearch').value = name;
+  selectedStudentId   = id;
+  selectedStudentName = name;
+  document.getElementById('markAbsentBtn').disabled = false;
+  document.getElementById('markODBtn').disabled = false;
+  // Show card
+  const card = document.getElementById('selectedCard');
+  card.style.display = 'block';
+  document.getElementById('scName').textContent = name;
+  document.getElementById('scMeta').textContent = `${year} Year — Section ${sec}`;
+  document.getElementById('scDetails').innerHTML = `
+    <div class="sc-row"><span>Roll No</span><code>${roll||'—'}</code></div>
+    <div class="sc-row"><span>Register No</span><code>${reg||'—'}</code></div>
+    <div class="sc-row"><span>Department</span><span>AI & Data Science</span></div>
+    <div class="sc-row"><span>Exam</span><span>${EXAM_NAME}</span></div>`;
+}
+
+function clearSelected() {
+  selectedStudentId = selectedStudentName = null;
+  document.getElementById('absSearch').value = '';
+  document.getElementById('selectedCard').style.display = 'none';
+  document.getElementById('markAbsentBtn').disabled = true;
+  document.getElementById('markODBtn').disabled = true;
+  document.getElementById('markMsg').innerHTML = '';
+}
+
+// ── Mark absent (from search panel) ──────────────────────────────────────
+async function markAbsent() {
+  if (!selectedStudentId) return;
+  await doMarkAbsent(selectedStudentId, selectedStudentName, chosenSymbol);
+  clearSelected();
+}
+
+// ── Quick absent (from table row button) ──────────────────────────────────
+async function quickAbsent(id, name, roll, reg) {
+  await doMarkAbsent(id, name, chosenSymbol);
+}
+
+async function doMarkAbsent(studentId, name, symbol) {
+  const resp = await fetch('/admin/attendance/mark-absent', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ sessionId:SESSION_ID, studentId, absenceSymbol:symbol })
+  });
+  const data = await resp.json();
+  if (data.success) {
+    updateRowUI(studentId, 'Absent', symbol);
+    addToAbsentList(studentId, name, symbol);
+    updateStats();
+    toast(`✅ ${name} marked absent (${symbol})`, 'ok');
+  } else toast('❌ '+data.message, 'err');
+}
+
+
+// ── Mark OD (from search panel) ───────────────────────────────────────────
+async function markOD() {
+  if (!selectedStudentId) return;
+  await doMarkOD(selectedStudentId, selectedStudentName);
+  clearSelected();
+}
+
+// ── Quick OD (from table row button) ─────────────────────────────────────
+async function quickOD(id, name) {
+  await doMarkOD(id, name);
+}
+
+async function doMarkOD(studentId, name) {
+  const resp = await fetch('/admin/attendance/mark-od', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ sessionId:SESSION_ID, studentId })
+  });
+  const data = await resp.json();
+  if (data.success) {
+    updateRowUI(studentId, 'OD', 'OD');
+    addToMarkedList(studentId, name, 'OD');
+    updateStats();
+    toast(`✅ ${name} marked On Duty (OD)`, 'ok');
+  } else toast('❌ '+data.message, 'err');
+}
+
+// ── Undo absence ──────────────────────────────────────────────────────────
+async function undoAbsent(studentId, name) {
+  const resp = await fetch('/admin/attendance/undo-absent', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ sessionId:SESSION_ID, studentId })
+  });
+  const data = await resp.json();
+  if (data.success) {
+    updateRowUI(studentId, 'Pending', '');
+    // Remove from absent list
+    const item = document.getElementById('absentItem-'+studentId);
+    if (item) item.remove();
+    const badge = document.getElementById('absentBadge');
+    badge.textContent = parseInt(badge.textContent||0) - 1;
+    checkAbsentEmpty();
+    updateStats();
+    toast(`✅ ${name} restored to Pending`, 'ok');
+  } else toast('❌ '+data.message, 'err');
+}
+
+// ── Restore Present → Pending (teacher mistake correction) ───────────────
+async function restorePresent(studentId, name) {
+  // Uses same undo endpoint — sets status back to Pending
+  const resp = await fetch('/admin/attendance/undo-absent', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ sessionId:SESSION_ID, studentId })
+  });
+  const data = await resp.json();
+  if (data.success) {
+    updateRowUI(studentId, 'Pending', '');
+    updateStats();
+    toast(`✅ Restored to Pending — now re-mark as Absent, OD, or leave as Pending`, 'ok');
+  } else toast('❌ '+data.message, 'err');
+}
+
+// ── Mark all present ──────────────────────────────────────────────────────
+async function markAllPresent() {
+  if (!confirm('Mark ALL pending students as Present and finalize this session?')) return;
+  const resp = await fetch('/admin/attendance/mark-all-present', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ sessionId:SESSION_ID })
+  });
+  const data = await resp.json();
+  if (data.success) {
+    toast('✅ '+data.message, 'ok');
+    setTimeout(()=>location.reload(), 1000);
+  } else toast('❌ '+data.message, 'err');
+}
+
+// ── Update table row UI ───────────────────────────────────────────────────
+function updateRowUI(studentId, status, symbol) {
+  const tr = document.getElementById('tr-'+studentId);
+  if (!tr) return;
+  tr.setAttribute('data-status', status);
+  tr.style.background = status==='Absent' ? '#fff5f5' : status==='OD' ? '#fff8e1' : status==='Present' ? '#f5fff7' : '';
+
+  const statusTd = document.getElementById('status-'+studentId);
+  if (status==='Present')
+    statusTd.innerHTML = '<span class="att-status-present"><i class="fas fa-check-circle"></i> Present</span>';
+  else if (status==='Absent')
+    statusTd.innerHTML = `<span class="att-status-absent"><i class="fas fa-times-circle"></i> ${symbol}</span>`;
+  else if (status==='OD')
+    statusTd.innerHTML = '<span class="att-status-od"><i class="fas fa-id-badge"></i> OD</span>';
+  else
+    statusTd.innerHTML = '<span class="att-status-pending"><i class="fas fa-clock"></i> —</span>';
+
+  const actionTd = document.getElementById('action-'+studentId);
+  if (status === 'Absent' || status === 'OD') {
+    // Both Absent and OD show only Undo button
+    actionTd.innerHTML = `<button class="btn-icon btn-icon--blue" title="Undo — restore to Pending" onclick="undoAbsent('${studentId}','')"><i class="fas fa-undo"></i></button>`;
+  } else if (status === 'Present') {
+    // Show green check + orange restore so teacher can always correct mistakes
+    actionTd.innerHTML =
+      `<button class="btn-icon" style="background:#e8f5e9;color:#2e7d32;margin-right:2px;" title="Marked Present" disabled><i class="fas fa-check"></i></button>` +
+      `<button class="btn-icon btn-icon--orange" title="Restore to Pending" onclick="restorePresent('${studentId}','')"><i class="fas fa-undo"></i></button>`;
+  } else {
+    // Pending — show BOTH Mark Absent and Mark OD buttons
+    actionTd.innerHTML =
+      `<button class="btn-icon btn-icon--red" style="margin-right:2px;" title="Mark Absent" onclick="quickAbsent('${studentId}','','','')"><i class="fas fa-user-times"></i></button>` +
+      `<button class="btn-icon" style="background:#fff3e0;color:#e65100;" title="Mark OD" onclick="quickOD('${studentId}','')"><i class="fas fa-id-badge"></i></button>`;
+  }
+}
+
+// ── Add to marked list panel (absent or OD) ───────────────────────────────
+function addToAbsentList(studentId, name, symbol) {
+  addToMarkedList(studentId, name, symbol);
+}
+
+function addToMarkedList(studentId, name, symbol) {
+  document.getElementById('noAbsentMsg')?.remove();
+  const list  = document.getElementById('absentList');
+  const isOD  = symbol === 'OD';
+  const bgClr = isOD ? '#e65100' : '#c62828';
+  if (!document.getElementById('absentItem-'+studentId)) {
+    list.innerHTML += `
+      <div class="absent-item" id="absentItem-${studentId}">
+        <div class="absent-item-info">
+          <span class="absent-symbol" style="background:${bgClr};">${symbol}</span>
+          <div><strong>${name}</strong></div>
+        </div>
+        <button class="btn-icon btn-icon--blue" onclick="undoAbsent('${studentId}','${name}')">
+          <i class="fas fa-undo"></i>
+        </button>
+      </div>`;
+  }
+  // Update badge counts
+  if (isOD) {
+    const badge = document.getElementById('odBadge');
+    const cur = parseInt(badge.textContent)||0;
+    badge.textContent = (cur+1) + ' OD';
+  } else {
+    const badge = document.getElementById('absentBadge');
+    const cur = parseInt(badge.textContent)||0;
+    badge.textContent = (cur+1) + ' A';
+  }
+}
+
+function checkAbsentEmpty() {
+  const list = document.getElementById('absentList');
+  if (!list.children.length) {
+    list.innerHTML = '<div id="noAbsentMsg" class="empty-mini" style="padding:1.5rem;text-align:center;"><i class="fas fa-check-circle" style="color:#2e7d32;font-size:1.5rem;"></i><p style="margin-top:0.5rem;">No absentees.</p></div>';
+  }
+}
+
+// ── Update stats ──────────────────────────────────────────────────────────
+function updateStats() {
+  const rows    = [...document.querySelectorAll('#attTbody tr')];
+  const present = rows.filter(r=>r.dataset.status==='Present').length;
+  const absent  = rows.filter(r=>r.dataset.status==='Absent').length;
+  const od      = rows.filter(r=>r.dataset.status==='OD').length;
+  const pending = rows.filter(r=>r.dataset.status==='Pending').length;
+  const total   = rows.length;
+  document.getElementById('sPresent').textContent  = present;
+  document.getElementById('sAbsent').textContent   = absent;
+  if(document.getElementById('sOD')) document.getElementById('sOD').textContent = od;
+  document.getElementById('sPending').textContent  = pending;
+  // Correct formula: OD counts as present (student attended college, went for duty)
+  const pct = total ? ((present + od) / total * 100).toFixed(1) : '0.0';
+  document.getElementById('sPercent').textContent  = pct + '%';
+}
+
+// ── Filter table ──────────────────────────────────────────────────────────
+function filterTable() {
+  const status = document.getElementById('filterStatus').value;
+  const q      = document.getElementById('tableSearch').value.toLowerCase();
+  document.querySelectorAll('#attTbody tr').forEach(row => {
+    const matchStatus = !status || row.dataset.status===status;
+    const matchQ      = !q || row.dataset.name.includes(q) || row.dataset.roll.includes(q);
+    row.style.display = (matchStatus && matchQ) ? '' : 'none';
+  });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function esc(str){ return (str||'').replace(/'/g,"\\'"); }
+
+function toast(msg, type) {
+  let t = document.getElementById('attToast');
+  if (!t) {
+    t=document.createElement('div'); t.id='attToast';
+    t.style.cssText='position:fixed;bottom:2rem;right:2rem;padding:0.85rem 1.4rem;border-radius:8px;font-weight:700;font-size:0.9rem;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:opacity 0.4s;pointer-events:none;';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;
+  t.style.background=type==='ok'?'#2e7d32':'#c62828';
+  t.style.color='#fff'; t.style.opacity='1';
+  clearTimeout(t._t); t._t=setTimeout(()=>t.style.opacity='0', 3500);
+}
+</script>
+<%- include('../partials/footer') %>

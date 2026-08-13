@@ -1,0 +1,346 @@
+<%- include('../partials/header') %>
+<div class="admin-layout">
+  <%- include('../partials/sidebar', { currentPage: 'attendance' }) %>
+
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <h2 class="topbar-title"><i class="fas fa-clipboard-check"></i> Exam Attendance System</h2>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-date"><i class="fas fa-calendar"></i> <%= new Date().toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}) %></span>
+        <span class="topbar-user"><i class="fas fa-user-circle"></i> <%= adminName %></span>
+      </div>
+    </div>
+
+    
+    <!-- College Banner -->
+    <div class="admin-college-banner">
+      <img src="/images/logo.png" alt="PEC" class="admin-banner-logo" onerror="this.style.display='none';">
+      <div class="admin-banner-text">
+        <div class="admin-banner-name">PANIMALAR ENGINEERING COLLEGE</div>
+        <div class="admin-banner-sub">(Autonomous Institution) &nbsp;·&nbsp; Dept. of AI &amp; Data Science</div>
+      </div>
+    </div>
+    <div class="admin-content">
+      <% if(error&&error.length){%><div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%=error[0]%></div><%}%>
+      <% if(success&&success.length){%><div class="alert alert-success"><i class="fas fa-check-circle"></i> <%=success[0]%></div><%}%>
+
+      <!-- Stats Row -->
+      <div class="stats-grid" style="margin-bottom:1.5rem;">
+        <div class="stat-card stat-blue">
+          <div class="stat-icon"><i class="fas fa-users"></i></div>
+          <div class="stat-info"><div class="stat-number"><%=totalAtt%></div><div class="stat-label">Total ATT Students</div></div>
+        </div>
+        <% byYear.sort((a,b)=>a._id.localeCompare(b._id)).forEach(y=>{ %>
+        <div class="stat-card stat-green">
+          <div class="stat-icon"><i class="fas fa-graduation-cap"></i></div>
+          <div class="stat-info"><div class="stat-number"><%=y.count%></div><div class="stat-label"><%=y._id%> Year</div></div>
+        </div>
+        <% }) %>
+        <div class="stat-card stat-orange">
+          <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
+          <div class="stat-info"><div class="stat-number"><%=sessions.length%></div><div class="stat-label">Total Sessions</div></div>
+        </div>
+      </div>
+
+      <div class="att-layout">
+
+        <!-- LEFT: Create Session + Dataset Management -->
+        <div class="att-left">
+
+          <!-- Create New Session -->
+          <div class="dash-card" style="margin-bottom:1rem;">
+            <div class="dash-card-header"><h3><i class="fas fa-plus-circle"></i> Start New Attendance Session</h3></div>
+            <div class="form-group">
+              <label>Exam Name <span class="req">*</span></label>
+              <input type="text" id="attExam" class="form-input" placeholder="e.g. Internal Assessment I">
+            </div>
+            <div class="form-group">
+              <label>Subject / Paper</label>
+              <input type="text" id="attSubject" class="form-input" placeholder="e.g. Data Structures">
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:1;">
+                <label>Year <span class="req">*</span></label>
+                <select id="attYear" class="form-select" onchange="updateSections()">
+                  <option value="">Select</option>
+                  <option value="II">II Year</option>
+                  <option value="III">III Year</option>
+                  <option value="IV">IV Year</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label>Section <span class="req">*</span></label>
+                <select id="attSection" class="form-select">
+                  <option value="">Select</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:1;">
+                <label>Exam Date <span class="req">*</span></label>
+                <input type="date" id="attDate" class="form-input" value="<%=new Date().toISOString().split('T')[0]%>">
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label>Session <span class="req">*</span></label>
+                <div style="display:flex;gap:0.4rem;">
+                  <button type="button" id="attBtnFN" class="session-pick-btn active" onclick="pickAttSession('FN')">
+                    FN<br><small>8:15 AM – 11:15 AM</small>
+                  </button>
+                  <button type="button" id="attBtnAN" class="session-pick-btn" onclick="pickAttSession('AN')">
+                    AN<br><small>12:15 PM – 3:15 PM</small>
+                  </button>
+                </div>
+                <input type="hidden" id="attSession" value="FN">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Hall Number</label>
+              <input type="text" id="attHall" class="form-input" placeholder="e.g. H-101">
+            </div>
+            <button class="btn-primary" style="width:100%;" onclick="createSession()">
+              <i class="fas fa-play-circle"></i> Start Attendance Session
+            </button>
+            <div id="sessionMsg" class="manual-result" style="margin-top:0.75rem;"></div>
+          </div>
+
+          <!-- Quick Student Lookup -->
+          <div class="dash-card" style="margin-bottom:1rem;">
+            <div class="dash-card-header"><h3><i class="fas fa-search"></i> Quick Student Lookup</h3></div>
+            <div class="form-row" style="margin-bottom:0.5rem;">
+              <div class="form-group" style="flex:1;margin:0;">
+                <select id="lookupYear" class="form-select">
+                  <option value="">Any Year</option>
+                  <option value="II">II Year</option>
+                  <option value="III">III Year</option>
+                  <option value="IV">IV Year</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1;margin:0;">
+                <input type="text" id="lookupSection" class="form-input" placeholder="Section (A-L)">
+              </div>
+            </div>
+            <div style="position:relative;">
+              <input type="text" id="lookupQ" class="form-input" placeholder="Name / Roll No / Register No..."
+                     autocomplete="off" oninput="doLookup()" style="margin-bottom:0;">
+              <div id="lookupDropdown" class="search-dropdown"></div>
+            </div>
+            <div id="lookupCard" style="display:none;margin-top:0.75rem;" class="student-lookup-card"></div>
+          </div>
+
+          <!-- Dataset Management -->
+          <div class="dash-card">
+            <div class="dash-card-header"><h3><i class="fas fa-database"></i> Dataset Management</h3></div>
+            <% fileStatus.forEach(f=>{ %>
+            <div class="dataset-row">
+              <div class="dataset-info">
+                <span class="dataset-year-badge"><%=f.year%> Year</span>
+                <div class="dataset-name"><%=f.file%></div>
+                <div class="dataset-meta">
+                  <% if(f.exists){ %>
+                    <span class="ds-ok"><i class="fas fa-check-circle"></i> Active (<%=f.size%>)</span>
+                  <% } else { %>
+                    <span class="ds-miss"><i class="fas fa-exclamation-triangle"></i> File missing</span>
+                  <% } %>
+                </div>
+              </div>
+              <form action="/admin/attendance/dataset/upload" method="POST" enctype="multipart/form-data" class="dataset-upload-form">
+                <label class="btn-secondary btn-sm ds-upload-label" title="Replace file">
+                  <i class="fas fa-upload"></i> Replace
+                  <input type="file" name="dataset" accept=".xlsx,.xls" onchange="this.form.submit()" style="display:none;">
+                </label>
+              </form>
+            </div>
+            <% }) %>
+            <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:0.75rem;">
+              <button class="btn-secondary" style="width:100%;" onclick="reseedAll()">
+                <i class="fas fa-sync-alt"></i> Refresh All Datasets from Files
+              </button>
+              <div id="reseedMsg" class="manual-result" style="margin-top:0.5rem;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Sessions History -->
+        <div class="att-right">
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3><i class="fas fa-history"></i> Attendance Sessions</h3>
+              <div style="display:flex;gap:0.5rem;align-items:center;">
+                <select id="filterYear" class="form-select" style="width:auto;" onchange="filterSessions()">
+                  <option value="">All Years</option>
+                  <option value="II">II Year</option>
+                  <option value="III">III Year</option>
+                  <option value="IV">IV Year</option>
+                </select>
+                <span class="badge-year" style="background:#888;"><%=sessions.length%></span>
+              </div>
+            </div>
+
+            <% if(!sessions.length){ %>
+              <div class="empty-mini" style="padding:3rem;text-align:center;">
+                <i class="fas fa-clipboard" style="font-size:3rem;color:#ccc;display:block;margin-bottom:1rem;"></i>
+                <p>No sessions yet. Create one to start marking attendance.</p>
+              </div>
+            <% } else { %>
+            <div class="table-wrapper">
+              <table class="data-table" id="sessionsTable">
+                <thead>
+                  <tr><th>#</th><th>Exam</th><th>Year/Sec</th><th>Date</th><th>Ses</th><th>Present</th><th>Absent</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  <% sessions.forEach((s,i)=>{ %>
+                  <%
+                    const present = s.records.filter(r=>r.status==='Present').length;
+                    const absent  = s.records.filter(r=>r.status==='Absent').length;
+                    const pending = s.records.filter(r=>r.status==='Pending').length;
+                    const total   = s.records.length;
+                  %>
+                  <tr class="session-row" data-year="<%=s.year%>">
+                    <td><%=i+1%></td>
+                    <td>
+                      <strong><%=s.examName%></strong>
+                      <% if(s.subject){ %><br><small style="color:#888;"><%=s.subject%></small><% } %>
+                    </td>
+                    <td><span class="badge-year"><%=s.year%> <%=s.section%></span></td>
+                    <td><small><%=new Date(s.examDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})%></small></td>
+                    <td><span class="badge-year" style="background:<%= s.session==='FN'?'#1565c0':'#6a1b9a' %>"><%=s.session%></span></td>
+                    <td><span style="color:#2e7d32;font-weight:700;"><%=present%></span></td>
+                    <td><span style="color:<%=absent?'#c62828':'#aaa'%>;font-weight:700;"><%=absent%></span></td>
+                    <td>
+                      <% if(s.isFinalized){ %>
+                        <span class="att-badge att-finalized"><i class="fas fa-check-double"></i> Done</span>
+                      <% } else { %>
+                        <span class="att-badge att-progress"><i class="fas fa-spinner"></i> Live</span>
+                      <% } %>
+                    </td>
+                    <td style="white-space:nowrap;">
+                      <a href="/admin/attendance/session/<%=s._id%>" class="btn-icon btn-icon--blue" title="Open & Mark"><i class="fas fa-edit"></i></a>
+                      <a href="/admin/attendance/download/<%=s._id%>" class="btn-icon btn-icon--red" title="Download PDF"><i class="fas fa-file-excel"></i></a>
+                      <form action="/admin/attendance/delete-session/<%=s._id%>" method="POST"
+                            onsubmit="return confirm('Delete this session permanently?')" style="display:inline;">
+                        <button type="submit" class="btn-icon btn-icon--red" title="Delete"><i class="fas fa-trash"></i></button>
+                      </form>
+                    </td>
+                  </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <% } %>
+          </div>
+        </div>
+      </div><!-- att-layout -->
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Section options per year ───────────────────────────────────────────────
+const SECTIONS = {
+  'II':  ['A','B','C','D','E','F','G','H','I','J','K','L'],
+  'III': ['A','B','C','D','E','F','G','H','I'],
+  'IV':  ['A','B','C','D','E','F','G','H','I']
+};
+
+function updateSections() {
+  const year = document.getElementById('attYear').value;
+  const sel  = document.getElementById('attSection');
+  sel.innerHTML = '<option value="">Select Section</option>';
+  (SECTIONS[year]||[]).forEach(s => {
+    sel.innerHTML += `<option value="${s}">Section ${s}</option>`;
+  });
+}
+
+// ── Create session ─────────────────────────────────────────────────────────
+async function createSession() {
+  const examName = document.getElementById('attExam').value.trim();
+  const subject  = document.getElementById('attSubject').value.trim();
+  const year     = document.getElementById('attYear').value;
+  const section  = document.getElementById('attSection').value;
+  const examDate = document.getElementById('attDate').value;
+  const session  = document.getElementById('attSession').value;
+  const hall     = document.getElementById('attHall').value.trim();
+  const msg      = document.getElementById('sessionMsg');
+
+  if (!examName||!year||!section||!examDate) {
+    msg.innerHTML = '<p class="err-msg"><i class="fas fa-exclamation-circle"></i> Fill all required fields.</p>';
+    return;
+  }
+  msg.innerHTML = '<p style="color:#555;"><i class="fas fa-spinner fa-spin"></i> Creating session...</p>';
+
+  const resp = await fetch('/admin/attendance/session/create', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ examName, subject, year, section, examDate, session, hallNumber:hall })
+  });
+  const data = await resp.json();
+  if (data.success) {
+    msg.innerHTML = `<p class="ok-msg"><i class="fas fa-check-circle"></i> ${data.message} Redirecting...</p>`;
+    setTimeout(() => window.location = '/admin/attendance/session/' + data.id, 900);
+  } else {
+    msg.innerHTML = `<p class="err-msg"><i class="fas fa-times-circle"></i> ${data.message}</p>`;
+  }
+}
+
+// ── Lookup student ─────────────────────────────────────────────────────────
+let lookupTimer;
+async function doLookup() {
+  const q       = document.getElementById('lookupQ').value.trim();
+  const year    = document.getElementById('lookupYear').value;
+  const section = document.getElementById('lookupSection').value.trim();
+  const dd      = document.getElementById('lookupDropdown');
+  clearTimeout(lookupTimer);
+  if (!q) { dd.innerHTML=''; return; }
+  lookupTimer = setTimeout(async () => {
+    const url = `/admin/attendance/search?q=${encodeURIComponent(q)}&year=${year}&section=${section}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    dd.innerHTML = data.map(s =>
+      `<div class="sd-item" onclick="showLookupCard(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+        <strong>${s.name}</strong>
+        <span style="color:#888;font-size:0.78rem;"> · ${s.rollNo} · ${s.year} Year Sec ${s.section}</span>
+      </div>`
+    ).join('') || '<div class="sd-item" style="color:#aaa;">No results found</div>';
+  }, 220);
+}
+
+function showLookupCard(s) {
+  document.getElementById('lookupDropdown').innerHTML = '';
+  document.getElementById('lookupQ').value = s.name;
+  const card = document.getElementById('lookupCard');
+  card.style.display = 'block';
+  card.innerHTML = `
+    <div class="lc-row"><span class="lc-label">Name</span><span class="lc-val"><strong>${s.name}</strong></span></div>
+    <div class="lc-row"><span class="lc-label">Roll No</span><span class="lc-val"><code>${s.rollNo||'—'}</code></span></div>
+    <div class="lc-row"><span class="lc-label">Register No</span><span class="lc-val"><code>${s.registerNumber||'—'}</code></span></div>
+    <div class="lc-row"><span class="lc-label">Year / Sec</span><span class="lc-val">${s.year} Year — Section ${s.section}</span></div>
+    <div class="lc-row"><span class="lc-label">Dept</span><span class="lc-val">AI & Data Science</span></div>`;
+}
+
+// ── Filter sessions table by year ─────────────────────────────────────────
+function filterSessions() {
+  const yr = document.getElementById('filterYear').value;
+  document.querySelectorAll('.session-row').forEach(row => {
+    row.style.display = (!yr || row.dataset.year===yr) ? '' : 'none';
+  });
+}
+
+// ── Reseed datasets ───────────────────────────────────────────────────────
+async function reseedAll() {
+  const msg = document.getElementById('reseedMsg');
+  msg.innerHTML = '<p style="color:#555;"><i class="fas fa-spinner fa-spin"></i> Refreshing datasets from Excel files...</p>';
+  const resp = await fetch('/admin/attendance/dataset/reseed', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({})
+  });
+  const data = await resp.json();
+  if (data.success) {
+    msg.innerHTML = `<p class="ok-msg"><i class="fas fa-check-circle"></i> ${data.message}</p>`;
+    setTimeout(()=>location.reload(), 1500);
+  } else {
+    msg.innerHTML = `<p class="err-msg"><i class="fas fa-times-circle"></i> ${data.message}</p>`;
+  }
+}
+</script>
+<%- include('../partials/footer') %>

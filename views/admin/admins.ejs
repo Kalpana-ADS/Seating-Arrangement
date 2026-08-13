@@ -1,0 +1,215 @@
+<%- include('../partials/header') %>
+<div class="admin-layout">
+  <%- include('../partials/sidebar', { currentPage: 'admins' }) %>
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <h2 class="topbar-title"><i class="fas fa-users-cog"></i> Manage Admin Users</h2>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-user"><i class="fas fa-user-circle"></i> <%= adminName || 'Admin' %></span>
+      </div>
+    </div>
+    
+    <!-- College Banner -->
+    <div class="admin-college-banner">
+      <img src="/images/logo.png" alt="PEC" class="admin-banner-logo" onerror="this.style.display='none';">
+      <div class="admin-banner-text">
+        <div class="admin-banner-name">PANIMALAR ENGINEERING COLLEGE</div>
+        <div class="admin-banner-sub">(Autonomous Institution) &nbsp;·&nbsp; Dept. of AI &amp; Data Science</div>
+      </div>
+    </div>
+    <div class="admin-content">
+      <% if (error && error.length > 0) { %>
+        <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%= error[0] %></div>
+      <% } %>
+      <% if (success && success.length > 0) { %>
+        <div class="alert alert-success"><i class="fas fa-check-circle"></i> <%= success[0] %></div>
+      <% } %>
+
+      <div class="dashboard-grid" style="gap:1.5rem;">
+
+        <!-- Add New Admin -->
+        <div class="dash-card">
+          <div class="dash-card-header"><h3><i class="fas fa-user-plus"></i> Add New Admin</h3></div>
+          <form action="/admin/admins/add" method="POST">
+            <div class="form-group">
+              <label>Username <span class="req">*</span></label>
+              <input type="text" name="username" class="form-input" placeholder="e.g. faculty2" required>
+            </div>
+            <div class="form-group">
+              <label>Full Name</label>
+              <input type="text" name="fullName" class="form-input" placeholder="e.g. Dr. Kumar S">
+            </div>
+            <div class="form-group">
+              <label>Password <span class="req">*</span></label>
+              <input type="text" name="password" class="form-input" placeholder="Set a strong password" required>
+            </div>
+            <div class="form-group">
+              <label>Role</label>
+              <select name="role" class="form-select">
+                <option value="staff">Staff</option>
+                <option value="admin">Admin</option>
+                <option value="superadmin">Super Admin</option>
+              </select>
+            </div>
+            <button type="submit" class="btn-primary" style="width:100%;">
+              <i class="fas fa-user-plus"></i> Create Account
+            </button>
+          </form>
+
+          <div class="divider"></div>
+
+          <!-- Change Own Password -->
+          <div class="dash-card-header"><h3><i class="fas fa-key"></i> Change My Password</h3></div>
+          <div class="form-group">
+            <label>Current Password</label>
+            <input type="password" id="curPass" class="form-input" placeholder="Current password">
+          </div>
+          <div class="form-group">
+            <label>New Password</label>
+            <input type="password" id="newPass" class="form-input" placeholder="New password">
+          </div>
+          <div class="form-group">
+            <label>Confirm New Password</label>
+            <input type="password" id="conPass" class="form-input" placeholder="Confirm new password">
+          </div>
+          <button class="btn-secondary" style="width:100%;" onclick="changeMyPassword()">
+            <i class="fas fa-key"></i> Update My Password
+          </button>
+          <div id="pwResult" class="manual-result"></div>
+
+          <div class="divider"></div>
+
+          <!-- Change Own Username -->
+          <div class="dash-card-header"><h3><i class="fas fa-user-edit"></i> Change My Username</h3></div>
+          <div class="form-group">
+            <label>New Username</label>
+            <input type="text" id="newUser" class="form-input" placeholder="New username">
+          </div>
+          <button class="btn-secondary" style="width:100%;" onclick="changeMyUsername()">
+            <i class="fas fa-user-edit"></i> Update My Username
+          </button>
+          <div id="userResult" class="manual-result"></div>
+        </div>
+
+        <!-- Current Admins Table -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3><i class="fas fa-users"></i> All Admin Accounts (<%= admins.length %>)</h3>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Username</th>
+                  <th>Full Name</th>
+                  <th>Role</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% admins.forEach((a, i) => { %>
+                <tr>
+                  <td><%= i+1 %></td>
+                  <td><code class="reg-code"><%= a.username %></code></td>
+                  <td><%= a.fullName %></td>
+                  <td>
+                    <span class="badge-year" style="<%= a.role==='superadmin'?'background:#c8a84b;color:#0d1b4b':a.role==='admin'?'':'background:#4a148c' %>">
+                      <%= a.role %>
+                    </span>
+                  </td>
+                  <td><small><%= new Date(a.createdAt).toLocaleDateString('en-IN') %></small></td>
+                  <td style="white-space:nowrap;">
+                    <!-- Reset Password -->
+                    <button class="btn-icon btn-icon--blue" title="Reset Password"
+                      onclick="resetPassword('<%= a._id %>', '<%= a.username %>')">
+                      <i class="fas fa-key"></i>
+                    </button>
+                    <!-- Delete -->
+                    <form action="/admin/admins/delete/<%= a._id %>" method="POST"
+                          onsubmit="return confirm('Delete admin <%= a.username %>?')" style="display:inline;">
+                      <button type="submit" class="btn-icon btn-icon--red" title="Delete">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Credentials Reference Box -->
+          <div style="margin-top:1.5rem;background:#f3f4f6;border-radius:8px;padding:1rem;">
+            <div style="font-weight:800;color:#0d1b4b;margin-bottom:0.75rem;font-size:0.88rem;">
+              <i class="fas fa-info-circle"></i> DEFAULT CREDENTIALS (change after first login)
+            </div>
+            <table style="width:100%;font-size:0.82rem;border-collapse:collapse;">
+              <tr style="background:#0d1b4b;color:#fff;">
+                <th style="padding:0.4rem 0.6rem;">Username</th>
+                <th style="padding:0.4rem 0.6rem;">Password</th>
+                <th style="padding:0.4rem 0.6rem;">Role</th>
+                <th style="padding:0.4rem 0.6rem;">For</th>
+              </tr>
+              <tr><td style="padding:0.35rem 0.6rem;font-family:monospace;">admin</td><td style="font-family:monospace;">admin123</td><td>superadmin</td><td>System Admin</td></tr>
+              <tr style="background:#f9f9f9;"><td style="padding:0.35rem 0.6rem;font-family:monospace;">hod</td><td style="font-family:monospace;">hod@pec123</td><td>admin</td><td>Head of Dept</td></tr>
+              <tr><td style="padding:0.35rem 0.6rem;font-family:monospace;">examcell</td><td style="font-family:monospace;">exam@2024</td><td>admin</td><td>Exam Cell</td></tr>
+              <tr style="background:#f9f9f9;"><td style="padding:0.35rem 0.6rem;font-family:monospace;">faculty1</td><td style="font-family:monospace;">fac@2024</td><td>staff</td><td>Faculty</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function changeMyPassword() {
+  const cur = document.getElementById('curPass').value;
+  const nw  = document.getElementById('newPass').value;
+  const con = document.getElementById('conPass').value;
+  const res = document.getElementById('pwResult');
+  if (!cur || !nw) { res.innerHTML = '<p class="err-msg">Fill all fields.</p>'; return; }
+  if (nw !== con)  { res.innerHTML = '<p class="err-msg">Passwords do not match.</p>'; return; }
+  const resp = await fetch('/admin/admins/change-password', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ currentPassword: cur, newPassword: nw })
+  });
+  const data = await resp.json();
+  res.innerHTML = data.success
+    ? `<p class="ok-msg"><i class="fas fa-check-circle"></i> ${data.message}</p>`
+    : `<p class="err-msg"><i class="fas fa-times-circle"></i> ${data.message}</p>`;
+}
+
+async function changeMyUsername() {
+  const nu  = document.getElementById('newUser').value.trim();
+  const res = document.getElementById('userResult');
+  if (!nu) { res.innerHTML = '<p class="err-msg">Enter new username.</p>'; return; }
+  const resp = await fetch('/admin/admins/change-username', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ newUsername: nu })
+  });
+  const data = await resp.json();
+  res.innerHTML = data.success
+    ? `<p class="ok-msg"><i class="fas fa-check-circle"></i> ${data.message} — page will reload.</p>`
+    : `<p class="err-msg"><i class="fas fa-times-circle"></i> ${data.message}</p>`;
+  if (data.success) setTimeout(() => location.reload(), 1500);
+}
+
+async function resetPassword(id, username) {
+  const nw = prompt(`Set new password for "${username}":`);
+  if (!nw) return;
+  const resp = await fetch('/admin/admins/change-password', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ adminId: id, newPassword: nw })
+  });
+  const data = await resp.json();
+  alert(data.message);
+}
+</script>
+
+<%- include('../partials/footer') %>
