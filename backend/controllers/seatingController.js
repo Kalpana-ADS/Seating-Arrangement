@@ -527,19 +527,19 @@ const exportExamAttendanceListPDF = async (req, res) => {
     if (logoBuf) { try { pdf.image(logoBuf, 30, startY, { width: 52, height: 52 }); } catch (e) {} }
     const headerW = 620;
     const headerX = (pdf.page.width - headerW) / 2;
-    pdf.fontSize(16).font('Helvetica-Bold').fillColor('#0D1B4B')
+    pdf.fontSize(20).font('Helvetica-Bold').fillColor('#0D1B4B')
       .text('PANIMALAR ENGINEERING COLLEGE', headerX, startY + 2, { width: headerW, align: 'center' });
-    pdf.fontSize(9).font('Helvetica-Bold').fillColor('#000000')
+    pdf.fontSize(11).font('Helvetica-Bold').fillColor('#000000')
       .text('(Autonomous Institution)', headerX, pdf.y + 2, { width: headerW, align: 'center' });
-    pdf.fontSize(9).font('Helvetica-Bold').fillColor('#1A2F7A')
+    pdf.fontSize(11).font('Helvetica-Bold').fillColor('#1A2F7A')
       .text('Department of Artificial Intelligence and Data Science', headerX, pdf.y + 2, { width: headerW, align: 'center' });
     pdf.y = Math.max(pdf.y + 10, startY + 62);
     pdf.moveDown(0.2);
     pdf.moveTo(30, pdf.y).lineTo(810, pdf.y).strokeColor('#0D1B4B').lineWidth(2).stroke();
     pdf.moveDown(0.4);
-    pdf.fontSize(14).font('Helvetica-Bold').fillColor('#000000')
+    pdf.fontSize(18).font('Helvetica-Bold').fillColor('#000000')
       .text('EXAM ATTENDANCE LIST', { align: 'center' });
-    pdf.fontSize(9).font('Helvetica-Bold').fillColor('#000000')
+    pdf.fontSize(11).font('Helvetica-Bold').fillColor('#000000')
       .text(`${year ? year + ' Year' : 'All Years'}${hall ? ' | Hall ' + hall : ''}  |  ${_formatDateShort(startDate)} - ${_formatDateShort(endDate)}`, { align: 'center' });
     pdf.moveDown(0.7);
 
@@ -551,20 +551,20 @@ const exportExamAttendanceListPDF = async (req, res) => {
     }
 
     const firstCols = [
-      { label: 'Hall No', w: 60 },
-      { label: 'Year / Sec', w: 85 },
-      { label: 'Reg Range', w: 150 },
-      { label: 'Total', w: 50 }
+      { label: 'Hall No', w: 52 },
+      { label: 'Year / Sec', w: 82 },
+      { label: 'Reg Range', w: 178 },
+      { label: 'Total', w: 48 }
     ];
     const fixedWidth = firstCols.reduce((sum, col) => sum + col.w, 0);
     const pageWidth = 765;
-    const availableForDates = Math.max(180, pageWidth - fixedWidth);
-    const dateWidth = Math.max(68, Math.min(90, availableForDates / Math.max(dateList.length, 1)));
+    const availableForDates = Math.max(150, pageWidth - fixedWidth);
+    const dateWidth = Math.max(62, Math.min(82, availableForDates / Math.max(dateList.length, 1)));
     const dateCols = dateList.map(d => ({ label: _formatDateShort(d), w: dateWidth }));
     const colDefs = [...firstCols, ...dateCols];
     const xStart = 30;
-    const rowH = 60;
-    const headerH = 30;
+    const rowH = 72;
+    const headerH = 34;
     let y = pdf.y;
     const totalTableWidth = colDefs.reduce((sum, c) => sum + c.w, 0);
 
@@ -580,12 +580,48 @@ const exportExamAttendanceListPDF = async (req, res) => {
       pdf.rect(cellX, cellY, cellW, cellH).strokeColor(strokeColor).lineWidth(borderWidth).stroke();
     };
 
+    const drawWrappedText = (x, y, w, h, text, options = {}) => {
+      const lines = [];
+      const chunks = String(text ?? '').split(/\n/);
+      chunks.forEach(chunk => {
+        const words = chunk.split(/\s+/).filter(Boolean);
+        if (!words.length) {
+          lines.push('');
+          return;
+        }
+
+        let current = '';
+        words.forEach(word => {
+          const candidate = current ? `${current} ${word}` : word;
+          if (pdf.widthOfString(candidate, { size: options.fontSize || 9 }) <= w - 12) {
+            current = candidate;
+          } else {
+            if (current) lines.push(current);
+            current = word;
+          }
+        });
+        if (current) lines.push(current);
+      });
+
+      const lineHeight = options.lineHeight || 11;
+      const totalTextHeight = lines.length * lineHeight;
+      const startY = y + Math.max(4, (h - totalTextHeight) / 2);
+      pdf.fillColor(options.color || '#000000').fontSize(options.fontSize || 9).font(options.fontFace || 'Helvetica-Bold');
+      lines.forEach((line, index) => {
+        pdf.text(line, x + 4, startY + (index * lineHeight), {
+          width: w - 8,
+          align: options.align || 'center',
+          valign: 'center'
+        });
+      });
+    };
+
     const renderHeader = () => {
       drawCell(xStart, y, totalTableWidth, headerH, '#0D1B4B', '#0D1B4B', 1.3);
-      pdf.fillColor('#FFFFFF').fontSize(7.0).font('Helvetica-Bold');
+      pdf.fillColor('#FFFFFF').fontSize(9.2).font('Helvetica-Bold');
       let cursor = xStart;
       colDefs.forEach(col => {
-        pdf.text(col.label, cursor + 3, y + 10, { width: col.w - 6, align: 'center' });
+        pdf.text(col.label, cursor + 1, y + (headerH - 12) / 2, { width: col.w - 2, align: 'center', valign: 'center' });
         cursor += col.w;
       });
       y += headerH;
@@ -594,61 +630,70 @@ const exportExamAttendanceListPDF = async (req, res) => {
     renderHeader();
 
     let hallIndex = 0;
-    let pageHallCount = 0;
     Object.entries(groupedHalls).forEach(([hallKey, hallRows]) => {
-      if (pageHallCount >= 2) {
+      const hallBlockHeight = (hallRows.length + 1) * rowH;
+      if (y + hallBlockHeight > 520) {
         pdf.addPage();
         y = 38;
         renderHeader();
-        pageHallCount = 0;
       }
 
       hallRows.forEach((row, index) => {
-        if (y > 515) {
+        if (y + rowH > 520) {
           pdf.addPage();
           y = 38;
           renderHeader();
-          pageHallCount = 0;
         }
         const bg = hallIndex + index % 2 === 0 ? '#F8F9FB' : '#FFFFFF';
         let cursor = xStart;
+        const regRangeText = `${row.startRegister || '-'} -\n${row.endRegister || '-'}`;
         const values = [
           row.hallNumber || hallKey,
           `${_upper(row.year)} / ${_upper(row.section)}`,
-          `${row.startRegister || '-'} - ${row.endRegister || '-'}`,
+          regRangeText,
           String(row.totalStudents || 0)
         ];
 
         values.forEach((value, idx) => {
           drawCell(cursor, y, colDefs[idx].w, rowH, bg, '#0D1B4B', 1.2);
-          pdf.fillColor('#000000').fontSize(7.1).font('Helvetica-Bold');
-          pdf.text(value, cursor + 4, y + 15, { width: colDefs[idx].w - 8, align: 'center' });
+          if (idx === 2) {
+            drawWrappedText(cursor, y, colDefs[idx].w, rowH, value, {
+              fontSize: 8.9,
+              lineHeight: 12,
+              align: 'center',
+              color: '#000000',
+              fontFace: 'Helvetica-Bold'
+            });
+          } else {
+            pdf.fillColor('#000000').fontSize(9.2).font('Helvetica-Bold');
+            pdf.text(value, cursor + 4, y + (rowH - 12) / 2, { width: colDefs[idx].w - 8, align: 'center', valign: 'center' });
+          }
           cursor += colDefs[idx].w;
         });
 
         dateList.forEach((date, dateIndex) => {
           const dateCellWidth = colDefs[values.length + dateIndex].w;
           drawCell(cursor, y, dateCellWidth, rowH, '#FFFFFF', '#0D1B4B', 1.2);
-          pdf.fillColor('#666666').fontSize(6.2).font('Helvetica');
+          pdf.fillColor('#666666').fontSize(7.2).font('Helvetica-Bold');
           pdf.text('', cursor + 2, y + 12, { width: dateCellWidth - 4, align: 'center' });
           cursor += dateCellWidth;
         });
         y += rowH;
       });
 
-      if (y > 500) {
+      if (y + rowH > 520) {
         pdf.addPage();
         y = 38;
         renderHeader();
       }
 
       drawCell(xStart, y, totalTableWidth, rowH, '#EEF3FF', '#0D1B4B', 1.4);
-      pdf.fillColor('#0D1B4B').fontSize(9.2).font('Helvetica-Bold');
+      pdf.fillColor('#0D1B4B').fontSize(10.5).font('Helvetica-Bold');
       const regRangeStartX = xStart + colDefs.slice(0, 2).reduce((sum, c) => sum + c.w, 0);
       const regRangeWidth = colDefs[2].w;
-      pdf.text('Faculty Signature', regRangeStartX + 6, y + 17, { width: regRangeWidth - 12, align: 'left' });
+      pdf.text('Faculty Signature', regRangeStartX + 6, y + (rowH - 12) / 2, { width: regRangeWidth - 12, align: 'left', valign: 'center' });
       const totalCellX = xStart + colDefs.slice(0, 3).reduce((sum, c) => sum + c.w, 0);
-      pdf.text(String(hallRows.reduce((sum, r) => sum + (r.totalStudents || 0), 0)), totalCellX + 4, y + 17, { width: colDefs[3].w - 8, align: 'center' });
+      pdf.text(String(hallRows.reduce((sum, r) => sum + (r.totalStudents || 0), 0)), totalCellX + 4, y + (rowH - 12) / 2, { width: colDefs[3].w - 8, align: 'center', valign: 'center' });
       let cursor = xStart + colDefs.slice(0, 4).reduce((sum, c) => sum + c.w, 0);
       dateList.forEach((date, dateIndex) => {
         const dateCellWidth = colDefs[4 + dateIndex].w;
@@ -657,7 +702,6 @@ const exportExamAttendanceListPDF = async (req, res) => {
       });
       y += rowH;
       hallIndex += hallRows.length;
-      pageHallCount += 1;
     });
 
     pdf.end();
