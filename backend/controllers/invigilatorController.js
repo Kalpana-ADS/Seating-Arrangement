@@ -251,8 +251,8 @@ const downloadPDF = async (req, res) => {
     if (logoBuf) {
       try { pdf.image(logoBuf, 50, startY, { width:60, height:60 }); } catch(e){}
     }
-    const tx = logoBuf ? 120 : 50;
-    const tw = logoBuf ? 375 : 495;
+    const tw = 500;
+    const tx = (pdf.page.width - tw) / 2;
     pdf.fontSize(15).font('Helvetica-Bold').fillColor('#0D1B4B')
        .text('PANIMALAR ENGINEERING COLLEGE', tx, startY+4, { width:tw, align:'center' });
     pdf.fontSize(10).font('Helvetica-Bold').fillColor('#000000')

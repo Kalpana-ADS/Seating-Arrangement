@@ -56,6 +56,25 @@ const _getDateRange = (from, to, fallbackDate) => {
   return '';
 };
 
+const _getDateList = (from, to) => {
+  const start = _parseDate(from) || new Date();
+  const end = _parseDate(to) || start;
+  if (!start || !end) return [];
+  const dates = [];
+  const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const stop = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  while (cursor <= stop) {
+    dates.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+};
+
+const _formatDateShort = date => {
+  if (!date || isNaN(date.getTime())) return '';
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+};
+
 const _upper = (value) => (value == null ? '' : String(value).trim().toUpperCase());
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -450,6 +469,203 @@ const getDeptNotice = async (req, res) => {
   }
 };
 
+const getExamAttendanceList = async (req, res) => {
+  try {
+    const { year, hall, from, to } = req.query;
+    const filter = {};
+    if (year) filter.year = year;
+    if (hall) filter.hallNumber = { $regex: `^${_escapeRegExp(hall)}$`, $options: 'i' };
+
+    const seatings = await Seating.find(filter).sort({ hallNumber: 1, year: 1, section: 1, order: 1 });
+    const allHalls = await Seating.distinct('hallNumber');
+    const firstExamDate = seatings.find(s => s.examDate) ? seatings.find(s => s.examDate).examDate : new Date();
+    const startDate = _parseDate(from) || new Date(firstExamDate);
+    const endDate = _parseDate(to) || startDate;
+    const dateList = _getDateList(startDate, endDate);
+    const examName = seatings.length ? seatings[0].examName : 'Internal Assessment';
+
+    res.render('admin/exam_attendance_list', {
+      title: 'Exam Attendance List',
+      seatings,
+      allHalls: allHalls.filter(Boolean),
+      selectedYear: year || '',
+      selectedHall: hall || '',
+      dateFrom: from || _formatDateShort(startDate),
+      dateTo: to || _formatDateShort(endDate),
+      dateList,
+      examName,
+      adminName: req.session.adminName,
+      error: req.flash('error'),
+      success: req.flash('success'),
+      currentPage: 'exam-attendance-list'
+    });
+  } catch (err) {
+    req.flash('error', err.message);
+    res.redirect('/admin/attendance');
+  }
+};
+
+const exportExamAttendanceListPDF = async (req, res) => {
+  try {
+    const { year, hall, from, to } = req.query;
+    const filter = {};
+    if (year) filter.year = year;
+    if (hall) filter.hallNumber = { $regex: `^${_escapeRegExp(hall)}$`, $options: 'i' };
+
+    const seatings = await Seating.find(filter).sort({ hallNumber: 1, year: 1, section: 1, order: 1 });
+    const startDate = _parseDate(from) || (seatings[0] && seatings[0].examDate ? new Date(seatings[0].examDate) : new Date());
+    const endDate = _parseDate(to) || startDate;
+    const dateList = _getDateList(startDate, endDate);
+
+    const pdf = new PDFDocument({ margin: 30, size: 'A4', layout: 'landscape' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=exam_attendance_list_${Date.now()}.pdf`);
+    pdf.pipe(res);
+
+    const logoBuf = _getLogoBuffer();
+    const startY = pdf.y;
+    if (logoBuf) { try { pdf.image(logoBuf, 30, startY, { width: 52, height: 52 }); } catch (e) {} }
+    const headerW = 620;
+    const headerX = (pdf.page.width - headerW) / 2;
+    pdf.fontSize(16).font('Helvetica-Bold').fillColor('#0D1B4B')
+      .text('PANIMALAR ENGINEERING COLLEGE', headerX, startY + 2, { width: headerW, align: 'center' });
+    pdf.fontSize(9).font('Helvetica-Bold').fillColor('#000000')
+      .text('(Autonomous Institution)', headerX, pdf.y + 2, { width: headerW, align: 'center' });
+    pdf.fontSize(9).font('Helvetica-Bold').fillColor('#1A2F7A')
+      .text('Department of Artificial Intelligence and Data Science', headerX, pdf.y + 2, { width: headerW, align: 'center' });
+    pdf.y = Math.max(pdf.y + 10, startY + 62);
+    pdf.moveDown(0.2);
+    pdf.moveTo(30, pdf.y).lineTo(810, pdf.y).strokeColor('#0D1B4B').lineWidth(2).stroke();
+    pdf.moveDown(0.4);
+    pdf.fontSize(14).font('Helvetica-Bold').fillColor('#000000')
+      .text('EXAM ATTENDANCE LIST', { align: 'center' });
+    pdf.fontSize(9).font('Helvetica-Bold').fillColor('#000000')
+      .text(`${year ? year + ' Year' : 'All Years'}${hall ? ' | Hall ' + hall : ''}  |  ${_formatDateShort(startDate)} - ${_formatDateShort(endDate)}`, { align: 'center' });
+    pdf.moveDown(0.7);
+
+    if (!seatings.length) {
+      pdf.fontSize(12).font('Helvetica-Bold').fillColor('#000000')
+        .text('No seating records available for the selected filters.', { align: 'center' });
+      pdf.end();
+      return;
+    }
+
+    const firstCols = [
+      { label: 'Hall No', w: 60 },
+      { label: 'Year / Sec', w: 85 },
+      { label: 'Reg Range', w: 150 },
+      { label: 'Total', w: 50 }
+    ];
+    const fixedWidth = firstCols.reduce((sum, col) => sum + col.w, 0);
+    const pageWidth = 765;
+    const availableForDates = Math.max(180, pageWidth - fixedWidth);
+    const dateWidth = Math.max(68, Math.min(90, availableForDates / Math.max(dateList.length, 1)));
+    const dateCols = dateList.map(d => ({ label: _formatDateShort(d), w: dateWidth }));
+    const colDefs = [...firstCols, ...dateCols];
+    const xStart = 30;
+    const rowH = 60;
+    const headerH = 30;
+    let y = pdf.y;
+    const totalTableWidth = colDefs.reduce((sum, c) => sum + c.w, 0);
+
+    const groupedHalls = seatings.reduce((map, row) => {
+      const hallKey = String(row.hallNumber || 'UNASSIGNED').toUpperCase();
+      if (!map[hallKey]) map[hallKey] = [];
+      map[hallKey].push(row);
+      return map;
+    }, {});
+
+    const drawCell = (cellX, cellY, cellW, cellH, fillColor, strokeColor = '#0D1B4B', borderWidth = 1.2) => {
+      pdf.rect(cellX, cellY, cellW, cellH).fillColor(fillColor).fill();
+      pdf.rect(cellX, cellY, cellW, cellH).strokeColor(strokeColor).lineWidth(borderWidth).stroke();
+    };
+
+    const renderHeader = () => {
+      drawCell(xStart, y, totalTableWidth, headerH, '#0D1B4B', '#0D1B4B', 1.3);
+      pdf.fillColor('#FFFFFF').fontSize(7.0).font('Helvetica-Bold');
+      let cursor = xStart;
+      colDefs.forEach(col => {
+        pdf.text(col.label, cursor + 3, y + 10, { width: col.w - 6, align: 'center' });
+        cursor += col.w;
+      });
+      y += headerH;
+    };
+
+    renderHeader();
+
+    let hallIndex = 0;
+    let pageHallCount = 0;
+    Object.entries(groupedHalls).forEach(([hallKey, hallRows]) => {
+      if (pageHallCount >= 2) {
+        pdf.addPage();
+        y = 38;
+        renderHeader();
+        pageHallCount = 0;
+      }
+
+      hallRows.forEach((row, index) => {
+        if (y > 515) {
+          pdf.addPage();
+          y = 38;
+          renderHeader();
+          pageHallCount = 0;
+        }
+        const bg = hallIndex + index % 2 === 0 ? '#F8F9FB' : '#FFFFFF';
+        let cursor = xStart;
+        const values = [
+          row.hallNumber || hallKey,
+          `${_upper(row.year)} / ${_upper(row.section)}`,
+          `${row.startRegister || '-'} - ${row.endRegister || '-'}`,
+          String(row.totalStudents || 0)
+        ];
+
+        values.forEach((value, idx) => {
+          drawCell(cursor, y, colDefs[idx].w, rowH, bg, '#0D1B4B', 1.2);
+          pdf.fillColor('#000000').fontSize(7.1).font('Helvetica-Bold');
+          pdf.text(value, cursor + 4, y + 15, { width: colDefs[idx].w - 8, align: 'center' });
+          cursor += colDefs[idx].w;
+        });
+
+        dateList.forEach((date, dateIndex) => {
+          const dateCellWidth = colDefs[values.length + dateIndex].w;
+          drawCell(cursor, y, dateCellWidth, rowH, '#FFFFFF', '#0D1B4B', 1.2);
+          pdf.fillColor('#666666').fontSize(6.2).font('Helvetica');
+          pdf.text('', cursor + 2, y + 12, { width: dateCellWidth - 4, align: 'center' });
+          cursor += dateCellWidth;
+        });
+        y += rowH;
+      });
+
+      if (y > 500) {
+        pdf.addPage();
+        y = 38;
+        renderHeader();
+      }
+
+      drawCell(xStart, y, totalTableWidth, rowH, '#EEF3FF', '#0D1B4B', 1.4);
+      pdf.fillColor('#0D1B4B').fontSize(9.2).font('Helvetica-Bold');
+      const regRangeStartX = xStart + colDefs.slice(0, 2).reduce((sum, c) => sum + c.w, 0);
+      const regRangeWidth = colDefs[2].w;
+      pdf.text('Faculty Signature', regRangeStartX + 6, y + 17, { width: regRangeWidth - 12, align: 'left' });
+      const totalCellX = xStart + colDefs.slice(0, 3).reduce((sum, c) => sum + c.w, 0);
+      pdf.text(String(hallRows.reduce((sum, r) => sum + (r.totalStudents || 0), 0)), totalCellX + 4, y + 17, { width: colDefs[3].w - 8, align: 'center' });
+      let cursor = xStart + colDefs.slice(0, 4).reduce((sum, c) => sum + c.w, 0);
+      dateList.forEach((date, dateIndex) => {
+        const dateCellWidth = colDefs[4 + dateIndex].w;
+        drawCell(cursor, y, dateCellWidth, rowH, '#F8FBFF', '#0D1B4B', 1.2);
+        cursor += dateCellWidth;
+      });
+      y += rowH;
+      hallIndex += hallRows.length;
+      pageHallCount += 1;
+    });
+
+    pdf.end();
+  } catch (err) {
+    res.status(500).send('Error generating attendance list PDF: ' + err.message);
+  }
+};
+
 // ── PDF Export ─────────────────────────────────────────────────────────────
 const exportPDF = async (req, res) => {
   try {
@@ -559,8 +775,8 @@ const exportHallPDF = async (req, res) => {
     const logoBuf = _getLogoBuffer();
     const sy = doc.y;
     if (logoBuf) { try { doc.image(logoBuf, 45, sy, { width:60, height:60 }); } catch(e){} }
-    const tx = logoBuf ? 115 : 45;
-    const tw = logoBuf ? 380 : 505;
+    const tw = 500;
+    const tx = (doc.page.width - tw) / 2;
 
     doc.fontSize(15).font('Helvetica-Bold').fillColor('#0D1B4B')
        .text('PANIMALAR ENGINEERING COLLEGE', tx, sy + 2, { width: tw, align: 'center' });
@@ -812,9 +1028,9 @@ function _pdfHeader(doc, mappedYear, seatings) {
       doc.image(logoBuf, 50, startY, { width: 60, height: 60 });
     } catch(e) {}
   }
-  // College name centered
-  const textX = logoBuf ? 120 : 50;
-  const textW = logoBuf ? 375 : 495;
+  // Keep the header content aligned to the true page center even when a logo is present.
+  const textW = 500;
+  const textX = (doc.page.width - textW) / 2;
   doc.fontSize(15).font('Helvetica-Bold').fillColor('#1a237e')
      .text('PANIMALAR ENGINEERING COLLEGE', textX, startY + 4, { width: textW, align: 'center' });
   doc.fontSize(10).font('Helvetica-Bold').fillColor('#000000')
@@ -909,6 +1125,8 @@ module.exports = {
   getPublicSeating,
   getHallSheet,
   getDeptNotice,
+  getExamAttendanceList,
+  exportExamAttendanceListPDF,
   exportPDF,
   exportHallPDF,
   exportDeptNoticePDF

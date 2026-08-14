@@ -1,0 +1,146 @@
+<%- include('../partials/header') %>
+<div class="admin-layout">
+  <%- include('../partials/sidebar', { currentPage: 'exam-attendance-list' }) %>
+
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <h2 class="topbar-title"><i class="fas fa-calendar-check"></i> Exam Attendance List</h2>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-user"><i class="fas fa-user-circle"></i> <%= adminName || 'Admin' %></span>
+      </div>
+    </div>
+
+    <div class="admin-college-banner">
+      <img src="/images/logo.png" alt="PEC" class="admin-banner-logo" onerror="this.style.display='none';">
+      <div class="admin-banner-text">
+        <div class="admin-banner-name">PANIMALAR ENGINEERING COLLEGE</div>
+        <div class="admin-banner-sub">(Autonomous Institution) &nbsp;·&nbsp; Dept. of AI &amp; Data Science</div>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <% if(error && error.length){ %>
+        <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%= error[0] %></div>
+      <% } %>
+      <% if(success && success.length){ %>
+        <div class="alert alert-success"><i class="fas fa-check-circle"></i> <%= success[0] %></div>
+      <% } %>
+
+      <div class="dash-card" style="margin-bottom:1.25rem;">
+        <div class="filter-row" style="gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+          <form method="GET" action="/admin/exam-attendance-list" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;flex:1;">
+            <div class="form-group" style="min-width:150px;flex:1;">
+              <label>Year</label>
+              <select name="year" class="form-select">
+                <option value="">All Years</option>
+                <option value="II" <%= selectedYear === 'II' ? 'selected' : '' %>>II Year</option>
+                <option value="III" <%= selectedYear === 'III' ? 'selected' : '' %>>III Year</option>
+                <option value="IV" <%= selectedYear === 'IV' ? 'selected' : '' %>>IV Year</option>
+              </select>
+            </div>
+            <div class="form-group" style="min-width:150px;flex:1;">
+              <label>Hall No</label>
+              <select name="hall" class="form-select">
+                <option value="">All Halls</option>
+                <% allHalls.forEach(h => { %>
+                  <option value="<%= h %>" <%= selectedHall === h ? 'selected' : '' %>><%= h %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="form-group" style="min-width:150px;flex:1;">
+              <label>Start Date</label>
+              <input type="date" name="from" class="form-input" value="<%= dateFrom || '' %>">
+            </div>
+            <div class="form-group" style="min-width:150px;flex:1;">
+              <label>End Date</label>
+              <input type="date" name="to" class="form-input" value="<%= dateTo || '' %>">
+            </div>
+            <button type="submit" class="btn-primary"><i class="fas fa-filter"></i> Apply</button>
+          </form>
+
+          <a href="/admin/exam-attendance-list/pdf?<%= new URLSearchParams({ year: selectedYear || '', hall: selectedHall || '', from: dateFrom || '', to: dateTo || '' }).toString() %>" class="btn-pdf">
+            <i class="fas fa-file-pdf"></i> Download PDF
+          </a>
+          <a href="/admin/attendance" class="btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <div style="text-align:center;border-bottom:4px solid #0d1b4b;padding-bottom:1rem;margin-bottom:1rem;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:1rem;margin-bottom:0.5rem;">
+            <img src="/images/logo.png" alt="PEC" style="width:70px;height:70px;object-fit:contain;" onerror="this.style.display='none'">
+          </div>
+          <div style="font-size:1.55rem;font-weight:900;color:#0d1b4b;letter-spacing:0.03em;line-height:1.3;text-align:center;">PANIMALAR ENGINEERING COLLEGE</div>
+          <div style="font-size:0.96rem;color:#444;font-weight:700;text-align:center;">(Autonomous Institution)</div>
+          <div style="font-size:1.05rem;color:#1a2f7a;font-weight:800;margin-top:0.25rem;text-align:center;line-height:1.4;">
+            Department of Artificial Intelligence and Data Science
+          </div>
+          <div style="margin:0.85rem auto 0;display:inline-block;background:#0d1b4b;color:#fff;padding:0.5rem 1.6rem;border-radius:4px;font-weight:900;font-size:1rem;letter-spacing:0.05em;text-align:center;">
+            EXAM ATTENDANCE LIST
+          </div>
+          <div style="font-size:0.9rem;color:#555;margin-top:0.55rem;font-weight:700;text-align:center;">
+            Exam: <%= examName %> &nbsp;|&nbsp; Date: <%= dateFrom && dateTo ? dateFrom + ' - ' + dateTo : '—' %>
+          </div>
+        </div>
+
+        <% if (!seatings.length) { %>
+          <div class="empty-mini" style="padding:3rem;text-align:center;">
+            <i class="fas fa-calendar-check" style="font-size:3rem;color:#ccc;display:block;margin-bottom:1rem;"></i>
+            <p>No seating data available for the selected filter.</p>
+          </div>
+        <% } else { %>
+          <%
+            const groupedHalls = {};
+            seatings.forEach(row => {
+              const key = (row.hallNumber || 'UNASSIGNED').toUpperCase();
+              if (!groupedHalls[key]) groupedHalls[key] = [];
+              groupedHalls[key].push(row);
+            });
+          %>
+          <div style="overflow:auto;">
+            <table class="data-table" style="min-width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed;">
+              <thead>
+                <tr>
+                  <th style="background:#1a2f7a; color:#fff; min-width:100px; padding:0.8rem 0.5rem;">Hall No</th>
+                  <th style="background:#1a2f7a; color:#fff; min-width:110px; padding:0.8rem 0.5rem;">Year / Sec</th>
+                  <th style="background:#1a2f7a; color:#fff; min-width:180px; padding:0.8rem 0.5rem;">Register Number Range</th>
+                  <th style="background:#1a2f7a; color:#fff; min-width:65px; padding:0.8rem 0.5rem;">Total</th>
+                  <% dateList.forEach(date => { %>
+                    <th style="background:#1a2f7a; color:#fff; min-width:110px; white-space:nowrap; padding:0.8rem 0.4rem;"><%= date.toLocaleDateString('en-IN', { day:'2-digit', month:'2-digit', year:'numeric' }) %></th>
+                  <% }) %>
+                </tr>
+              </thead>
+              <tbody>
+                <% Object.entries(groupedHalls).forEach(([hallKey, hallRows], hallIndex) => { %>
+                  <% hallRows.forEach((row, i) => { %>
+                    <tr style="<%= (hallIndex + i) % 2 === 0 ? 'background:#f7f9ff;' : '' %>; height:42px;">
+                      <td style="font-weight:700; text-align:center; color:#0d1b4b; padding:0.7rem 0.5rem;"><%= row.hallNumber || hallKey %></td>
+                      <td style="text-align:center; font-weight:700; padding:0.7rem 0.5rem;"><%= (row.year || '').toString().toUpperCase() %> / <%= (row.section || '').toString().toUpperCase() %></td>
+                      <td style="text-align:center; padding:0.7rem 0.5rem;"><%= row.startRegister || '-' %> - <%= row.endRegister || '-' %></td>
+                      <td style="text-align:center; font-weight:800; color:#0d1b4b; padding:0.7rem 0.5rem;"><%= row.totalStudents || 0 %></td>
+                      <% dateList.forEach(date => { %>
+                        <td style="min-width:110px; text-align:center; background:#fff; border-left:1px solid #e5e7eb; padding:0.7rem 0.4rem;"></td>
+                      <% }) %>
+                    </tr>
+                  <% }) %>
+                  <tr style="background:#eef3ff; font-weight:700; height:42px;">
+                    <td colspan="3" style="padding:0.7rem 0.5rem; color:#0d1b4b;">Faculty Signature</td>
+                    <td style="padding:0.7rem 0.5rem; text-align:center; color:#0d1b4b;"><%= hallRows.reduce((sum, r) => sum + (r.totalStudents || 0), 0) %></td>
+                    <% dateList.forEach(date => { %>
+                      <td style="padding:0.7rem 0.4rem; background:#f8fbff; border-left:1px solid #dfe7ff;"></td>
+                    <% }) %>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

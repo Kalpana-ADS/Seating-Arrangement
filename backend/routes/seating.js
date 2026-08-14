@@ -5,6 +5,7 @@ const {
   getDashboard, getSeatingManage, generateSeating, addSeatingRow, getRemaining,
   updateSeating, deleteSeating, clearSeating,
   getPublicSeating, getHallSheet, getDeptNotice,
+  getExamAttendanceList, exportExamAttendanceListPDF,
   exportPDF, exportHallPDF, exportDeptNoticePDF
 } = require('../controllers/seatingController');
 
@@ -22,6 +23,8 @@ router.get('/hallsheet/:hall',         isAuthenticated, getHallSheet);
 router.get('/hallsheet/pdf/:hall',     isAuthenticated, exportHallPDF);
 router.get('/deptnotice',              isAuthenticated, getDeptNotice);
 router.get('/deptnotice/pdf',          isAuthenticated, exportDeptNoticePDF);
+router.get('/exam-attendance-list',    isAuthenticated, getExamAttendanceList);
+router.get('/exam-attendance-list/pdf', isAuthenticated, exportExamAttendanceListPDF);
 
 // ── Public routes ────────────────────────────────────────────
 router.get('/view/:year',              getPublicSeating);
