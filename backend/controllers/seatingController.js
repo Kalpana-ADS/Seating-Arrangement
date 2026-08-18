@@ -517,6 +517,24 @@ const exportExamAttendanceListPDF = async (req, res) => {
     const endDate = _parseDate(to) || startDate;
     const dateList = _getDateList(startDate, endDate);
 
+    const seatingsWithLateral = await Promise.all(seatings.map(async (row) => {
+      const secParts = String(row.section || '').split('&').map(x => x.trim()).filter(Boolean);
+      const students = secParts.length
+        ? await Student.find({
+            year: row.year,
+            section: { $in: secParts.map(sp => new RegExp(`^${sp}$`, 'i')) }
+          }).sort({ registerNumber: 1 })
+        : [];
+      const batch = students.filter(st => {
+        const start = String(row.startRegister || '');
+        const end = String(row.endRegister || '');
+        if (!start || !end) return false;
+        return st.registerNumber >= start && st.registerNumber <= end;
+      });
+      const lateralEntries = findTCGaps(batch);
+      return { ...row.toObject ? row.toObject() : row, lateralEntries };
+    }));
+
     const pdf = new PDFDocument({ margin: 30, size: 'A4', layout: 'landscape' });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=exam_attendance_list_${Date.now()}.pdf`);
@@ -568,7 +586,7 @@ const exportExamAttendanceListPDF = async (req, res) => {
     let y = pdf.y;
     const totalTableWidth = colDefs.reduce((sum, c) => sum + c.w, 0);
 
-    const groupedHalls = seatings.reduce((map, row) => {
+    const groupedHalls = seatingsWithLateral.reduce((map, row) => {
       const hallKey = String(row.hallNumber || 'UNASSIGNED').toUpperCase();
       if (!map[hallKey]) map[hallKey] = [];
       map[hallKey].push(row);
@@ -646,7 +664,18 @@ const exportExamAttendanceListPDF = async (req, res) => {
         }
         const bg = hallIndex + index % 2 === 0 ? '#F8F9FB' : '#FFFFFF';
         let cursor = xStart;
-        const regRangeText = `${row.startRegister || '-'} -\n${row.endRegister || '-'}`;
+        const regRangeText = (() => {
+          const start = row.startRegister || '-';
+          const end = row.endRegister || '-';
+          const extra = Array.isArray(row.lateralEntries) && row.lateralEntries.length
+            ? `EX: ${row.lateralEntries.slice(0, 8).join(', ')}`
+            : '';
+          return [
+            `${start} -`,
+            end,
+            extra
+          ].filter(Boolean).join('\n');
+        })();
         const values = [
           row.hallNumber || hallKey,
           `${_upper(row.year)} / ${_upper(row.section)}`,
@@ -658,14 +687,14 @@ const exportExamAttendanceListPDF = async (req, res) => {
           drawCell(cursor, y, colDefs[idx].w, rowH, bg, '#0D1B4B', 1.2);
           if (idx === 2) {
             drawWrappedText(cursor, y, colDefs[idx].w, rowH, value, {
-              fontSize: 8.9,
-              lineHeight: 12,
+              fontSize: 8.2,
+              lineHeight: 10,
               align: 'center',
               color: '#000000',
               fontFace: 'Helvetica-Bold'
             });
           } else {
-            pdf.fillColor('#000000').fontSize(9.2).font('Helvetica-Bold');
+            pdf.fillColor('#000000').fontSize(9.0).font('Helvetica-Bold');
             pdf.text(value, cursor + 4, y + (rowH - 12) / 2, { width: colDefs[idx].w - 8, align: 'center', valign: 'center' });
           }
           cursor += colDefs[idx].w;

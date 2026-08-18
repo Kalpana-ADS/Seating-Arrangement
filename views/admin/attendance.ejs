@@ -106,6 +106,25 @@
             <div id="sessionMsg" class="manual-result" style="margin-top:0.75rem;"></div>
           </div>
 
+          <!-- Overall Attendance -->
+          <div class="dash-card" style="margin-bottom:1rem;">
+            <div class="dash-card-header"><h3><i class="fas fa-file-pdf"></i> Overall Attendance</h3></div>
+            <div class="form-row" style="margin-bottom:0.5rem;">
+              <div class="form-group" style="flex:1;margin:0;">
+                <label>Year</label>
+                <select id="overallYear" class="form-select">
+                  <option value="">Select Year</option>
+                  <option value="II">II Year</option>
+                  <option value="III">III Year</option>
+                  <option value="IV">IV Year</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn-primary" style="width:100%;" onclick="generateOverallAttendance()">
+              <i class="fas fa-download"></i> Download Year-wise Absentees &amp; OD PDF
+            </button>
+          </div>
+
           <!-- Quick Student Lookup -->
           <div class="dash-card" style="margin-bottom:1rem;">
             <div class="dash-card-header"><h3><i class="fas fa-search"></i> Quick Student Lookup</h3></div>
@@ -252,6 +271,15 @@ function updateSections() {
   (SECTIONS[year]||[]).forEach(s => {
     sel.innerHTML += `<option value="${s}">Section ${s}</option>`;
   });
+}
+
+function generateOverallAttendance() {
+  const year = document.getElementById('overallYear').value;
+  if (!year) {
+    alert('Please select a year first.');
+    return;
+  }
+  window.location.href = `/admin/attendance/overall?year=${encodeURIComponent(year)}`;
 }
 
 // ── Create session ─────────────────────────────────────────────────────────

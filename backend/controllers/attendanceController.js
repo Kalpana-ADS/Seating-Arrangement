@@ -238,6 +238,145 @@ exports.deleteSession = async (req, res) => {
   } catch(err) { req.flash('error',err.message); res.redirect('/admin/attendance'); }
 };
 
+// ─── GET /admin/attendance/overall → combined year PDF ─────────────────────
+exports.downloadOverallPDF = async (req, res) => {
+  try {
+    const year = String(req.query.year || '').trim().toUpperCase();
+    if (!['II', 'III', 'IV'].includes(year)) {
+      return res.status(400).send('Please select a valid year.');
+    }
+
+    const sessions = await AttSession.find({ year }).sort({ examDate: 1, section: 1, session: 1 });
+    if (!sessions.length) {
+      return res.status(404).send(`No attendance sessions found for ${year} Year.`);
+    }
+
+    const rows = [];
+    sessions.forEach(session => {
+      const sessionRows = (session.records || [])
+        .filter(r => r.status === 'Absent' || r.status === 'OD')
+        .map(r => ({
+          section: session.section,
+          examName: session.examName,
+          subject: session.subject || '',
+          examDate: new Date(session.examDate),
+          sessionLabel: session.session,
+          status: r.status,
+          symbol: r.absenceSymbol || (r.status === 'OD' ? 'OD' : 'A'),
+          name: r.name,
+          rollNo: r.rollNo,
+          registerNumber: r.registerNumber
+        }));
+      rows.push(...sessionRows);
+    });
+
+    const pdf = new PDFDocument({ margin: 42, size: 'A4', layout: 'portrait' });
+    const fname = `Overall_Attendance_${year}_Year.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
+    pdf.pipe(res);
+
+    const logoBuf = getLogoBuf();
+    const startY = pdf.y;
+    if (logoBuf) { try { pdf.image(logoBuf, 50, startY, { width: 60, height: 60 }); } catch(e){} }
+
+    const tw = 500;
+    const tx = (pdf.page.width - tw) / 2;
+    pdf.fontSize(15).font('Helvetica-Bold').fillColor('#0D1B4B')
+      .text('PANIMALAR ENGINEERING COLLEGE', tx, startY + 4, { width: tw, align: 'center' });
+    pdf.fontSize(10).font('Helvetica-Bold').fillColor('#000000')
+      .text('(Autonomous Institution)', tx, pdf.y + 2, { width: tw, align: 'center' });
+    pdf.text('Department of Artificial Intelligence and Data Science', tx, pdf.y + 2, { width: tw, align: 'center' });
+    pdf.y = Math.max(pdf.y + 6, startY + 68);
+    pdf.moveTo(50, pdf.y).lineTo(545, pdf.y).strokeColor('#0D1B4B').lineWidth(2).stroke();
+    pdf.moveDown(0.6);
+
+    pdf.fontSize(14).font('Helvetica-Bold').fillColor('#000000')
+      .text('OVERALL ATTENDANCE REPORT', { align: 'center' });
+    pdf.moveDown(0.2);
+    pdf.fontSize(10).font('Helvetica-Bold')
+      .text(`${year} Year — Absentees and On Duty Students`, { align: 'center' });
+    pdf.moveDown(0.65);
+
+    const absCount = rows.filter(r => r.status === 'Absent').length;
+    const odCount = rows.filter(r => r.status === 'OD').length;
+    const uniqueSections = [...new Set(rows.map(r => r.section))].sort();
+
+    pdf.fontSize(9).font('Helvetica-Bold').fillColor('#0D1B4B');
+    const summaryX = 50;
+    const summaryY = pdf.y;
+    pdf.rect(summaryX, summaryY, 495, 30).fillColor('#EAF2FF').fill();
+    pdf.fillColor('#0D1B4B');
+    pdf.text(`Total Sessions: ${sessions.length}`, summaryX + 12, summaryY + 8, { width: 130, align: 'left' });
+    pdf.text(`Absent: ${absCount}`, summaryX + 145, summaryY + 8, { width: 90, align: 'left' });
+    pdf.text(`OD: ${odCount}`, summaryX + 240, summaryY + 8, { width: 80, align: 'left' });
+    pdf.text(`Sections: ${uniqueSections.length ? uniqueSections.join(', ') : '—'}`, summaryX + 320, summaryY + 8, { width: 180, align: 'left' });
+    pdf.y = summaryY + 38;
+
+    const colX = [50, 92, 145, 245, 331, 392, 451];
+    const colW = [35, 50, 95, 83, 58, 55, 52];
+    const headerLabels = ['S.No', 'Sec', 'Exam', 'Date', 'Session', 'Roll No', 'Status'];
+    let y = pdf.y;
+
+    pdf.rect(45, y, 500, 20).fillColor('#1A2F7A').fill();
+    pdf.fillColor('#FFFFFF').fontSize(7.2).font('Helvetica-Bold');
+    headerLabels.forEach((h, idx) => {
+      pdf.text(h, colX[idx], y + 5, { width: colW[idx], align: 'center' });
+    });
+    y += 20;
+
+    if (!rows.length) {
+      pdf.fillColor('#000000').fontSize(10).font('Helvetica-Bold');
+      pdf.text('No Absent / OD students found for this year.', 50, y + 8, { width: 495, align: 'center' });
+      pdf.end();
+      return;
+    }
+
+    const sortedRows = rows.sort((a, b) => {
+      const sec = (a.section || '').localeCompare(b.section || '');
+      if (sec !== 0) return sec;
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+
+    sortedRows.forEach((r, idx) => {
+      if (y > 760) {
+        pdf.addPage();
+        y = 50;
+        pdf.rect(45, y, 500, 20).fillColor('#1A2F7A').fill();
+        pdf.fillColor('#FFFFFF').fontSize(7.2).font('Helvetica-Bold');
+        headerLabels.forEach((h, idx2) => {
+          pdf.text(h, 50 + tableCols.slice(0, idx2).reduce((a, b) => a + b, 0), y + 5, { width: tableCols[idx2], align: 'center' });
+        });
+        y += 20;
+      }
+
+      const rowBg = r.status === 'Absent' ? '#FFF0F0' : '#FFF8E1';
+      const statusColor = r.status === 'Absent' ? '#CC0000' : '#E65100';
+      pdf.rect(45, y, 500, 18).fillColor(rowBg).fill();
+      pdf.rect(45, y, 500, 18).strokeColor('#CCCCCC').lineWidth(0.4).stroke();
+      pdf.fillColor('#000000').fontSize(7).font('Helvetica-Bold');
+
+      pdf.text(String(idx + 1), colX[0], y + 4, { width: colW[0], align: 'center' });
+      pdf.text(String(r.section || '—'), colX[1], y + 4, { width: colW[1], align: 'center' });
+      pdf.text(String(r.examName || '—'), colX[2], y + 4, { width: colW[2], align: 'left', ellipsis: true });
+      pdf.text(new Date(r.examDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }), colX[3], y + 4, { width: colW[3], align: 'center' });
+      pdf.text(String(r.sessionLabel || '—'), colX[4], y + 4, { width: colW[4], align: 'center' });
+      pdf.text(String(r.rollNo || '—'), colX[5], y + 4, { width: colW[5], align: 'center' });
+      pdf.fillColor(statusColor).font('Helvetica-Bold');
+      pdf.text(String(r.symbol || r.status), colX[6], y + 4, { width: colW[6], align: 'center' });
+      y += 18;
+    });
+
+    pdf.moveDown(1.3);
+    pdf.fontSize(8).font('Helvetica-Bold').fillColor('#000000');
+    pdf.text(`Generated on: ${new Date().toLocaleString('en-IN')}   |   Overall Attendance Summary for ${year} Year`, { align: 'center' });
+    pdf.end();
+  } catch (err) {
+    console.error('Overall attendance PDF error:', err);
+    res.status(500).send('Error generating overall attendance PDF: ' + err.message);
+  }
+};
+
 // ─── GET /admin/attendance/download/:id → PDF ─────────────────────────────────
 exports.downloadPDF = async (req, res) => {
   try {
@@ -271,12 +410,10 @@ exports.downloadPDF = async (req, res) => {
     pdf.fontSize(13).font('Helvetica-Bold').fillColor('#000000')
        .text('EXAM ATTENDANCE REGISTER', { align:'center' });
     pdf.moveDown(0.3);
-    pdf.fontSize(10).font('Helvetica-Bold').fillColor('#000000')
-       .text(`${rec.year} Year — Section ${rec.section}   |   ${rec.examName}   |   ${dateStr}   |   ${rec.session} Session`,
-         { align:'center' });
-    if (rec.hallNumber) {
-      pdf.text(`Hall: ${rec.hallNumber}`, { align:'center' });
-    }
+    pdf.fontSize(10).font('Helvetica-Bold').fillColor('#000000');
+    pdf.text(`${rec.year} Year — Section ${rec.section}`, { align:'center' });
+    pdf.text(`${rec.examName}${rec.subject ? ' | ' + rec.subject : ''}`, { align:'center' });
+    pdf.text(`${dateStr} | ${rec.session} Session`, { align:'center' });
     pdf.moveDown(0.8);
 
     // ── Summary Box ───────────────────────────────────────────────────────────

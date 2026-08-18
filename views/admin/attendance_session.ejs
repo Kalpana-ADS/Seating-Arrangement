@@ -219,7 +219,9 @@
                   <tr id="tr-<%=String(r.studentId)%>"
                       data-status="<%=r.status%>"
                       data-name="<%=r.name.toLowerCase()%>"
-                      data-roll="<%=r.rollNo.toLowerCase()%>"
+                      data-roll="<%=String(r.rollNo||'').toLowerCase()%>"
+                      data-display-name="<%=r.name%>"
+                      data-display-roll="<%=r.rollNo || '—'%>"
                       style="<%=r.status==='Absent'?'background:#fff5f5;':r.status==='OD'?'background:#fff8e1;':r.status==='Present'?'background:#f5fff7;':''%>">
                     <td><%=i+1%></td>
                     <td><strong><%=r.name%></strong></td>
@@ -368,10 +370,13 @@ async function markAbsent() {
 
 // ── Quick absent (from table row button) ──────────────────────────────────
 async function quickAbsent(id, name, roll, reg) {
-  await doMarkAbsent(id, name, chosenSymbol);
+  const tr = document.getElementById('tr-' + id);
+  const resolvedName = name || tr?.dataset.displayName || tr?.querySelector('strong')?.textContent || '';
+  const resolvedRoll = roll || tr?.dataset.displayRoll || '';
+  await doMarkAbsent(id, resolvedName, chosenSymbol, resolvedRoll);
 }
 
-async function doMarkAbsent(studentId, name, symbol) {
+async function doMarkAbsent(studentId, name, symbol, rollNo) {
   const resp = await fetch('/admin/attendance/mark-absent', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ sessionId:SESSION_ID, studentId, absenceSymbol:symbol })
@@ -379,9 +384,9 @@ async function doMarkAbsent(studentId, name, symbol) {
   const data = await resp.json();
   if (data.success) {
     updateRowUI(studentId, 'Absent', symbol);
-    addToAbsentList(studentId, name, symbol);
+    addToAbsentList(studentId, name || 'Unknown Student', symbol);
     updateStats();
-    toast(`✅ ${name} marked absent (${symbol})`, 'ok');
+    toast(`✅ ${name || 'Student'} marked absent (${symbol})`, 'ok');
   } else toast('❌ '+data.message, 'err');
 }
 
@@ -395,7 +400,9 @@ async function markOD() {
 
 // ── Quick OD (from table row button) ─────────────────────────────────────
 async function quickOD(id, name) {
-  await doMarkOD(id, name);
+  const tr = document.getElementById('tr-' + id);
+  const resolvedName = name || tr?.dataset.displayName || tr?.querySelector('strong')?.textContent || '';
+  await doMarkOD(id, resolvedName);
 }
 
 async function doMarkOD(studentId, name) {

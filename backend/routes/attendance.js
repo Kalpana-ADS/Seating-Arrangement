@@ -13,6 +13,7 @@ router.post('/edit-record',            isAuthenticated, C.editRecord);
 router.post('/mark-od',                isAuthenticated, C.markOD);
 router.post('/mark-all-present',       isAuthenticated, C.markAllPresent);
 router.post('/delete-session/:id',     isAuthenticated, C.deleteSession);
+router.get('/overall',                 isAuthenticated, C.downloadOverallPDF);
 router.get('/download/:id',            isAuthenticated, C.downloadPDF);
 router.post('/dataset/upload',         isAuthenticated, C.uploadMiddleware, C.uploadDataset);
 router.post('/dataset/reseed',         isAuthenticated, C.reseedAll);

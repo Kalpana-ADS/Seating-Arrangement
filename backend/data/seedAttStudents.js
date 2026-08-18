@@ -6489,14 +6489,6 @@ module.exports = [
   },
   {
     "year": "III",
-    "section": "A",
-    "rollNo": "2023PECAI163",
-    "registerNumber": "2023PECAI163",
-    "name": "HARSHAVARTHINI T",
-    "department": "AI & Data Science"
-  },
-  {
-    "year": "III",
     "section": "B",
     "rollNo": "2024PECAI164",
     "registerNumber": "2024PECAI164",
