@@ -1,0 +1,229 @@
+<%- include('../partials/header') %>
+<div class="admin-layout">
+  <%- include('../partials/sidebar', { currentPage: 'attendance-report' }) %>
+
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <h2 class="topbar-title"><i class="fas fa-chart-bar"></i> Overall Attendance Report</h2>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-date"><i class="fas fa-calendar"></i> <%= new Date().toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}) %></span>
+        <span class="topbar-user"><i class="fas fa-user-circle"></i> <%= adminName %></span>
+      </div>
+    </div>
+
+    <!-- College Banner -->
+    <div class="admin-college-banner">
+      <img src="/images/logo.png" alt="PEC" class="admin-banner-logo" onerror="this.style.display='none';">
+      <div class="admin-banner-text">
+        <div class="admin-banner-name">PANIMALAR ENGINEERING COLLEGE</div>
+        <div class="admin-banner-sub">(Autonomous Institution) &nbsp;·&nbsp; Dept. of AI & Data Science</div>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <% if(error&&error.length){%><div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%=error[0]%></div><%}%>
+      <% if(success&&success.length){%><div class="alert alert-success"><i class="fas fa-check-circle"></i> <%=success[0]%></div><%}%>
+
+      <!-- Filter Bar -->
+      <div class="dash-card" style="margin-bottom:1.25rem;">
+        <div class="filter-row" style="gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+          <form method="GET" action="/admin/attendance-report" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;flex:1;">
+            <div class="form-group" style="min-width:200px;margin:0;">
+              <label>Select Year</label>
+              <select name="year" class="form-select" onchange="this.form.submit()">
+                <option value="">All Years</option>
+                <% years.forEach(y=>{ %>
+                  <option value="<%=y%>" <%= selectedYear===y ? 'selected' : '' %>><%=y%> Year</option>
+                <% }) %>
+              </select>
+            </div>
+            <noscript><button type="submit" class="btn-primary"><i class="fas fa-filter"></i> Apply</button></noscript>
+          </form>
+
+          <a href="/admin/attendance-report/pdf?year=<%=encodeURIComponent(selectedYear||'')%>" class="btn-pdf">
+            <i class="fas fa-file-pdf"></i> Download PDF Report
+          </a>
+          <a href="/admin/attendance" class="btn-secondary"><i class="fas fa-arrow-left"></i> Back to Attendance</a>
+        </div>
+      </div>
+
+      <!-- Overall Summary Cards -->
+      <div class="stats-grid" style="margin-bottom:1.5rem;">
+        <div class="stat-card stat-blue">
+          <div class="stat-icon"><i class="fas fa-users"></i></div>
+          <div class="stat-info">
+            <div class="stat-number"><%=report.totals.total%></div>
+            <div class="stat-label"><%=selectedYear||'All'%> Year Total Records</div>
+          </div>
+        </div>
+        <div class="stat-card stat-green">
+          <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+          <div class="stat-info">
+            <div class="stat-number"><%=report.totals.present%></div>
+            <div class="stat-label">Present</div>
+          </div>
+        </div>
+        <div class="stat-card stat-maroon">
+          <div class="stat-icon"><i class="fas fa-user-times"></i></div>
+          <div class="stat-info">
+            <div class="stat-number"><%=report.totals.absent%></div>
+            <div class="stat-label">Absent</div>
+          </div>
+        </div>
+        <div class="stat-card" style="border-left-color:#e65100;">
+          <div class="stat-icon" style="color:#e65100;"><i class="fas fa-id-badge"></i></div>
+          <div class="stat-info">
+            <div class="stat-number"><%=report.totals.od%></div>
+            <div class="stat-label">On Duty (OD)</div>
+          </div>
+        </div>
+        <div class="stat-card stat-orange">
+          <div class="stat-icon"><i class="fas fa-clock"></i></div>
+          <div class="stat-info">
+            <div class="stat-number"><%=report.totals.pending%></div>
+            <div class="stat-label">Pending</div>
+          </div>
+        </div>
+        <div class="stat-card" style="border-left-color:#9c27b0;">
+          <div class="stat-icon" style="color:#9c27b0;"><i class="fas fa-percentage"></i></div>
+          <div class="stat-info">
+            <div class="stat-number"><%=report.totals.pct%>%</div>
+            <div class="stat-label">Overall Attendance <small style="font-size:0.6rem;display:block;color:#888;">(Present+OD)/Total</small></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session-wise summary table -->
+      <div class="dash-card" style="margin-bottom:1.5rem;">
+        <div class="dash-card-header">
+          <h3><i class="fas fa-history"></i> Session-wise Summary (<%=report.sessionCount%> sessions)</h3>
+        </div>
+        <% if(!report.sessions.length){ %>
+          <div class="empty-mini" style="padding:2.5rem;text-align:center;">
+            <i class="fas fa-clipboard" style="font-size:3rem;color:#ccc;display:block;margin-bottom:1rem;"></i>
+            <p>No attendance sessions found for <%=selectedYear?selectedYear+' Year':'any year'%>. Create sessions in the <a href="/admin/attendance">Exam Attendance System</a> first.</p>
+          </div>
+        <% } else { %>
+          <div class="table-wrapper">
+            <table class="data-table min-report-table">
+              <thead>
+                <tr>
+                  <th>#</th><th>Date</th><th>Exam / Subject</th><th>Year</th><th>Sec</th>
+                  <th>Ses</th><th>Present</th><th>Absent</th><th>OD</th><th>Attendance %</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% report.sessions.forEach((s,i)=>{ %>
+                  <tr>
+                    <td><%=i+1%></td>
+                    <td><small><%=new Date(s.examDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'})%></small></td>
+                    <td>
+                      <strong><%=s.examName%></strong>
+                      <% if(s.subject){ %><br><small style="color:#888;"><%=s.subject%></small><% } %>
+                    </td>
+                    <td><span class="badge-year"><%=s.year%></span></td>
+                    <td><span class="badge-sec"><%=s.section%></span></td>
+                    <td><span class="badge-year" style="background:<%= s.session==='FN'?'#1565c0':'#6a1b9a' %>"><%=s.session%></span></td>
+                    <td><span style="color:#2e7d32;font-weight:700;"><%=s.present%></span></td>
+                    <td><span style="color:<%=s.absent?'#c62828':'#aaa'%>;font-weight:700;"><%=s.absent%></span></td>
+                    <td><span style="color:<%=s.od?'#e65100':'#aaa'%>;font-weight:700;"><%=s.od%></span></td>
+                    <td><strong><%=s.pct%>%</strong></td>
+                    <td>
+                      <% if(s.isFinalized){ %>
+                        <span class="att-badge att-finalized"><i class="fas fa-check-double"></i> Done</span>
+                      <% } else { %>
+                        <span class="att-badge att-progress"><i class="fas fa-spinner"></i> Live</span>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Absentee details -->
+      <div class="dash-card" style="margin-bottom:1.5rem;border-top:4px solid #c62828;">
+        <div class="dash-card-header">
+          <h3><i class="fas fa-user-times"></i> Absentee Details <span class="badge-year" style="background:#c62828;"><%=report.absenteeList.length%></span></h3>
+        </div>
+        <% if(!report.absenteeList.length){ %>
+          <div class="empty-mini" style="padding:2rem;text-align:center;">
+            <i class="fas fa-check-circle" style="color:#2e7d32;font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+            <p>No absentees recorded.</p>
+          </div>
+        <% } else { %>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th><th>Student Name</th><th>Roll No</th><th>Register No</th>
+                  <th>Year/Sec</th><th>Exam</th><th>Date</th><th>Ses</th><th>Symbol</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% report.absenteeList.forEach((r,i)=>{ %>
+                  <tr style="background:#fff5f5;">
+                    <td><%=i+1%></td>
+                    <td><strong><%=r.name%></strong></td>
+                    <td><code style="font-size:0.8rem;"><%=r.rollNo||'—'%></code></td>
+                    <td><code style="font-size:0.8rem;"><%=r.registerNumber||'—'%></code></td>
+                    <td><span class="badge-year"><%=r.year%></span> <span class="badge-sec"><%=r.section%></span></td>
+                    <td><small><%=r.examName%></small></td>
+                    <td><small><%=new Date(r.examDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})%></small></td>
+                    <td><span class="badge-year" style="font-size:0.7rem;padding:0.1rem 0.4rem;"><%=r.session%></span></td>
+                    <td><span class="absent-symbol"><%=r.absenceSymbol%></span></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- OD details -->
+      <div class="dash-card" style="border-top:4px solid #e65100;">
+        <div class="dash-card-header">
+          <h3><i class="fas fa-id-badge"></i> On Duty (OD) Student Details <span class="badge-year" style="background:#e65100;"><%=report.odList.length%></span></h3>
+        </div>
+        <% if(!report.odList.length){ %>
+          <div class="empty-mini" style="padding:2rem;text-align:center;">
+            <i class="fas fa-info-circle" style="color:#888;font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+            <p>No OD students recorded.</p>
+          </div>
+        <% } else { %>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th><th>Student Name</th><th>Roll No</th><th>Register No</th>
+                  <th>Year/Sec</th><th>Exam</th><th>Date</th><th>Ses</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% report.odList.forEach((r,i)=>{ %>
+                  <tr style="background:#fff8e1;">
+                    <td><%=i+1%></td>
+                    <td><strong><%=r.name%></strong></td>
+                    <td><code style="font-size:0.8rem;"><%=r.rollNo||'—'%></code></td>
+                    <td><code style="font-size:0.8rem;"><%=r.registerNumber||'—'%></code></td>
+                    <td><span class="badge-year"><%=r.year%></span> <span class="badge-sec"><%=r.section%></span></td>
+                    <td><small><%=r.examName%></small></td>
+                    <td><small><%=new Date(r.examDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})%></small></td>
+                    <td><span class="badge-year" style="font-size:0.7rem;padding:0.1rem 0.4rem;"><%=r.session%></span></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+
+    </div>
+  </div>
+</div>
+<%- include('../partials/footer') %>
