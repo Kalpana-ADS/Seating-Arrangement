@@ -107,8 +107,8 @@
             <div class="dash-card-header"><h3><i class="fas fa-file-pdf"></i> Overall Attendance</h3></div>
             <div class="form-row" style="margin-bottom:0.5rem;">
               <div class="form-group" style="flex:1;margin:0;">
-                <label>Year</label>
-                <select id="overallYear" class="form-select">
+                <label>Year <span class="req">*</span></label>
+                <select id="overallYear" class="form-select" onchange="updateOverallSubjects()">
                   <option value="">Select Year</option>
                   <option value="II">II Year</option>
                   <option value="III">III Year</option>
@@ -116,8 +116,22 @@
                 </select>
               </div>
             </div>
+            <div class="form-row" style="margin-bottom:0.5rem;">
+              <div class="form-group" style="flex:1;margin:0;">
+                <label>Subject / Paper</label>
+                <select id="overallSubject" class="form-select">
+                  <option value="">All Subjects</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom:0.5rem;">
+              <div class="form-group" style="flex:1;margin:0;">
+                <label>Exam Date</label>
+                <input type="date" id="overallDate" class="form-input">
+              </div>
+            </div>
             <button class="btn-primary" style="width:100%;" onclick="generateOverallAttendance()">
-              <i class="fas fa-download"></i> Download Year-wise Absentees &amp; OD PDF
+              <i class="fas fa-download"></i> Download Year-wise Absentees & OD PDF
             </button>
           </div>
 
@@ -260,6 +274,8 @@
   </div>
 </div>
 
+<script type="application/json" id="overallSubjectsData"><%- JSON.stringify(subjectYears || []) %></script>
+
 <script>
 // ── Section options per year ───────────────────────────────────────────────
 const SECTIONS = {
@@ -284,13 +300,33 @@ function pickAttSession(value) {
   if (typeof saveAttendanceDetails === 'function') saveAttendanceDetails();
 }
 
+// ── Subject options per year (populated from server data) ─────────────────
+const OVERALL_SUBJECTS = JSON.parse(document.getElementById('overallSubjectsData').textContent || '[]');
+
+function updateOverallSubjects() {
+  const year = document.getElementById('overallYear').value;
+  const sel  = document.getElementById('overallSubject');
+  sel.innerHTML = '<option value="">All Subjects</option>';
+  if (!year) return;
+  OVERALL_SUBJECTS
+    .filter(s => s._id.year === year && s._id.subject)
+    .forEach(s => {
+      sel.innerHTML += `<option value="${String(s._id.subject).replace(/"/g, '"')}">${s._id.subject}</option>`;
+    });
+}
+
 function generateOverallAttendance() {
   const year = document.getElementById('overallYear').value;
   if (!year) {
     alert('Please select a year first.');
     return;
   }
-  window.location.href = `/admin/attendance/overall?year=${encodeURIComponent(year)}`;
+  const subject = document.getElementById('overallSubject').value;
+  const date    = document.getElementById('overallDate').value;
+  const params = new URLSearchParams({ year });
+  if (subject) params.set('subject', subject);
+  if (date)    params.set('date', date);
+  window.location.href = `/admin/attendance/overall?${params.toString()}`;
 }
 
 // ── Create session ─────────────────────────────────────────────────────────

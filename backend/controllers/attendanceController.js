@@ -84,9 +84,18 @@ exports.getPage = async (req, res) => {
       exists: fs.existsSync(path.join(dataDir,f.file)),
       size: (() => { try { return (fs.statSync(path.join(dataDir,f.file)).size/1024).toFixed(1)+' KB'; } catch(e){ return '—'; }})()
     }));
+    // Distinct subjects from attendance sessions (for the year-wise download filter)
+    const subjects = await AttSession.distinct('subject').then(list =>
+      list.filter(Boolean).sort((a,b)=>String(a).localeCompare(String(b)))
+    );
+    const subjectYears = await AttSession.aggregate([
+      { $group:{ _id:{ year:'$year', subject:'$subject' } } },
+      { $sort:{ '_id.year':1, '_id.subject':1 } }
+    ]);
     res.render('admin/attendance', {
       title:'Exam Attendance System',
       sessions, totalAtt, byYear, sections, fileStatus,
+      subjects, subjectYears,
       adminName: req.session.adminName,
       error:   req.flash('error'),
       success: req.flash('success')
@@ -250,14 +259,34 @@ exports.deleteAllSessions = async (req, res) => {
 // ─── GET /admin/attendance/overall → combined year PDF ─────────────────────
 exports.downloadOverallPDF = async (req, res) => {
   try {
-    const year = String(req.query.year || '').trim().toUpperCase();
+    const year          = String(req.query.year || '').trim().toUpperCase();
+    const subjectFilter = String(req.query.subject || '').trim();
+    const dateFilter    = String(req.query.date || '').trim();
     if (!['II', 'III', 'IV'].includes(year)) {
       return res.status(400).send('Please select a valid year.');
     }
 
-    const sessions = await AttSession.find({ year }).sort({ examDate: 1, section: 1, session: 1 });
+    // ── Build filter: year (required) + optional subject / date ────────────
+    const filter = { year };
+    if (subjectFilter) {
+      const escaped = subjectFilter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.subject = { $regex: escaped, $options: 'i' };
+    }
+    if (dateFilter) {
+      const d = new Date(dateFilter);
+      if (!isNaN(d.getTime())) {
+        const start = new Date(d); start.setHours(0, 0, 0, 0);
+        const end   = new Date(d); end.setHours(23, 59, 59, 999);
+        filter.examDate = { $gte: start, $lte: end };
+      }
+    }
+
+    const sessions = await AttSession.find(filter).sort({ examDate: 1, section: 1, session: 1 });
     if (!sessions.length) {
-      return res.status(404).send(`No attendance sessions found for ${year} Year.`);
+      const parts = [year + ' Year'];
+      if (subjectFilter) parts.push(`subject "${subjectFilter}"`);
+      if (dateFilter)    parts.push(`date ${dateFilter}`);
+      return res.status(404).send(`No attendance sessions found for ${parts.join(', ')}.`);
     }
 
     const sectionStats = {};
@@ -292,7 +321,7 @@ exports.downloadOverallPDF = async (req, res) => {
     });
 
     const pdf = new PDFDocument({ margin: 42, size: 'A4', layout: 'portrait' });
-    const fname = `Overall_Attendance_${year}_Year.pdf`;
+    const fname = `Overall_Attendance_${year}_Year${subjectFilter ? '_' + subjectFilter.replace(/[^a-zA-Z0-9]+/g, '_') : ''}${dateFilter ? '_' + dateFilter : ''}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
     pdf.pipe(res);
