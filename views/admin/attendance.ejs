@@ -96,10 +96,6 @@
                 <input type="hidden" id="attSession" value="FN">
               </div>
             </div>
-            <div class="form-group">
-              <label>Hall Number</label>
-              <input type="text" id="attHall" class="form-input" placeholder="e.g. H-101">
-            </div>
             <button class="btn-primary" style="width:100%;" onclick="createSession()">
               <i class="fas fa-play-circle"></i> Start Attendance Session
             </button>
@@ -195,6 +191,14 @@
                   <option value="IV">IV Year</option>
                 </select>
                 <span class="badge-year" style="background:#888;"><%=sessions.length%></span>
+                <% if(sessions.length){ %>
+                <form action="/admin/attendance/delete-all-sessions" method="POST"
+                      onsubmit="return confirm('Clear all attendance sessions permanently?')" style="display:inline;">
+                  <button type="submit" class="btn-icon btn-icon--red" title="Clear All Attendance Sessions">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+                <% } %>
               </div>
             </div>
 
@@ -273,6 +277,13 @@ function updateSections() {
   });
 }
 
+function pickAttSession(value) {
+  document.getElementById('attSession').value = value;
+  document.getElementById('attBtnFN').classList.toggle('active', value === 'FN');
+  document.getElementById('attBtnAN').classList.toggle('active', value === 'AN');
+  if (typeof saveAttendanceDetails === 'function') saveAttendanceDetails();
+}
+
 function generateOverallAttendance() {
   const year = document.getElementById('overallYear').value;
   if (!year) {
@@ -290,7 +301,6 @@ async function createSession() {
   const section  = document.getElementById('attSection').value;
   const examDate = document.getElementById('attDate').value;
   const session  = document.getElementById('attSession').value;
-  const hall     = document.getElementById('attHall').value.trim();
   const msg      = document.getElementById('sessionMsg');
 
   if (!examName||!year||!section||!examDate) {
@@ -301,7 +311,7 @@ async function createSession() {
 
   const resp = await fetch('/admin/attendance/session/create', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ examName, subject, year, section, examDate, session, hallNumber:hall })
+    body: JSON.stringify({ examName, subject, year, section, examDate, session })
   });
   const data = await resp.json();
   if (data.success) {
@@ -311,6 +321,38 @@ async function createSession() {
     msg.innerHTML = `<p class="err-msg"><i class="fas fa-times-circle"></i> ${data.message}</p>`;
   }
 }
+
+// Keep the shared exam details ready when returning from a completed section.
+const ATTENDANCE_DETAILS_KEY = 'attendanceSharedDetails';
+const attendanceDetailFields = ['attExam', 'attSubject', 'attYear', 'attDate', 'attSession'];
+
+function saveAttendanceDetails() {
+  const details = {};
+  attendanceDetailFields.forEach(id => { details[id] = document.getElementById(id)?.value || ''; });
+  localStorage.setItem(ATTENDANCE_DETAILS_KEY, JSON.stringify(details));
+}
+
+function restoreAttendanceDetails() {
+  try {
+    const details = JSON.parse(localStorage.getItem(ATTENDANCE_DETAILS_KEY) || '{}');
+    ['attExam', 'attSubject', 'attDate'].forEach(id => {
+      if (details[id] !== undefined) document.getElementById(id).value = details[id];
+    });
+    if (details.attYear) {
+      document.getElementById('attYear').value = details.attYear;
+      updateSections();
+    }
+    if (details.attSession) pickAttSession(details.attSession);
+  } catch (error) {
+    localStorage.removeItem(ATTENDANCE_DETAILS_KEY);
+  }
+}
+
+attendanceDetailFields.forEach(id => {
+  document.getElementById(id)?.addEventListener('change', saveAttendanceDetails);
+  document.getElementById(id)?.addEventListener('input', saveAttendanceDetails);
+});
+restoreAttendanceDetails();
 
 // ── Lookup student ─────────────────────────────────────────────────────────
 let lookupTimer;

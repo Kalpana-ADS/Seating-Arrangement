@@ -238,6 +238,15 @@ exports.deleteSession = async (req, res) => {
   } catch(err) { req.flash('error',err.message); res.redirect('/admin/attendance'); }
 };
 
+// ─── POST /admin/attendance/delete-all-sessions ─────────────────────────────
+exports.deleteAllSessions = async (req, res) => {
+  try {
+    const result = await AttSession.deleteMany({});
+    req.flash('success', `${result.deletedCount} attendance session(s) deleted.`);
+    res.redirect('/admin/attendance');
+  } catch(err) { req.flash('error',err.message); res.redirect('/admin/attendance'); }
+};
+
 // ─── GET /admin/attendance/overall → combined year PDF ─────────────────────
 exports.downloadOverallPDF = async (req, res) => {
   try {
@@ -250,6 +259,15 @@ exports.downloadOverallPDF = async (req, res) => {
     if (!sessions.length) {
       return res.status(404).send(`No attendance sessions found for ${year} Year.`);
     }
+
+    const sectionStats = {};
+    sessions.forEach(session => {
+      const section = session.section || '';
+      if (!sectionStats[section]) sectionStats[section] = { total: 0, attended: 0 };
+      sectionStats[section].total += (session.records || []).length;
+      sectionStats[section].attended += (session.records || [])
+        .filter(r => r.status === 'Present' || r.status === 'OD').length;
+    });
 
     const rows = [];
     sessions.forEach(session => {
@@ -265,7 +283,10 @@ exports.downloadOverallPDF = async (req, res) => {
           symbol: r.absenceSymbol || (r.status === 'OD' ? 'OD' : 'A'),
           name: r.name,
           rollNo: r.rollNo,
-          registerNumber: r.registerNumber
+          registerNumber: r.registerNumber,
+          presentPercentage: sectionStats[session.section].total
+            ? ((sectionStats[session.section].attended / sectionStats[session.section].total) * 100).toFixed(2)
+            : '0.00'
         }));
       rows.push(...sessionRows);
     });
@@ -296,26 +317,22 @@ exports.downloadOverallPDF = async (req, res) => {
     pdf.moveDown(0.2);
     pdf.fontSize(10).font('Helvetica-Bold')
       .text(`${year} Year — Absentees and On Duty Students`, { align: 'center' });
-    pdf.moveDown(0.65);
+    pdf.moveDown(0.45);
 
-    const absCount = rows.filter(r => r.status === 'Absent').length;
-    const odCount = rows.filter(r => r.status === 'OD').length;
-    const uniqueSections = [...new Set(rows.map(r => r.section))].sort();
+    const commonSession = sessions[0];
+    const metadataY = pdf.y;
 
-    pdf.fontSize(9).font('Helvetica-Bold').fillColor('#0D1B4B');
-    const summaryX = 50;
-    const summaryY = pdf.y;
-    pdf.rect(summaryX, summaryY, 495, 30).fillColor('#EAF2FF').fill();
-    pdf.fillColor('#0D1B4B');
-    pdf.text(`Total Sessions: ${sessions.length}`, summaryX + 12, summaryY + 8, { width: 130, align: 'left' });
-    pdf.text(`Absent: ${absCount}`, summaryX + 145, summaryY + 8, { width: 90, align: 'left' });
-    pdf.text(`OD: ${odCount}`, summaryX + 240, summaryY + 8, { width: 80, align: 'left' });
-    pdf.text(`Sections: ${uniqueSections.length ? uniqueSections.join(', ') : '—'}`, summaryX + 320, summaryY + 8, { width: 180, align: 'left' });
-    pdf.y = summaryY + 38;
+    pdf.rect(50, metadataY, 495, 42).fillColor('#EAF2FF').fill();
+    pdf.fillColor('#0D1B4B').fontSize(9).font('Helvetica-Bold');
+    pdf.text(`Exam: ${commonSession.examName || 'Internal Assessment 1'}`, 62, metadataY + 8, { width: 220 });
+    pdf.text(`Subject: ${commonSession.subject || '—'}`, 300, metadataY + 8, { width: 230 });
+    pdf.text(`Date: ${new Date(commonSession.examDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`, 62, metadataY + 25, { width: 220 });
+    pdf.text(`Session: ${commonSession.session || '—'}`, 300, metadataY + 25, { width: 230 });
+    pdf.y = metadataY + 54;
 
-    const colX = [50, 92, 145, 245, 331, 392, 451];
-    const colW = [35, 50, 95, 83, 58, 55, 52];
-    const headerLabels = ['S.No', 'Sec', 'Exam', 'Date', 'Session', 'Roll No', 'Status'];
+    const colX = [50, 105, 145, 260, 390, 450];
+    const colW = [55, 40, 115, 130, 60, 95];
+    const headerLabels = ['S.No', 'Sec', 'Roll No', 'Name of Student', 'Status', 'Overall Class Present %'];
     let y = pdf.y;
 
     pdf.rect(45, y, 500, 20).fillColor('#1A2F7A').fill();
@@ -345,7 +362,7 @@ exports.downloadOverallPDF = async (req, res) => {
         pdf.rect(45, y, 500, 20).fillColor('#1A2F7A').fill();
         pdf.fillColor('#FFFFFF').fontSize(7.2).font('Helvetica-Bold');
         headerLabels.forEach((h, idx2) => {
-          pdf.text(h, 50 + tableCols.slice(0, idx2).reduce((a, b) => a + b, 0), y + 5, { width: tableCols[idx2], align: 'center' });
+          pdf.text(h, colX[idx2], y + 5, { width: colW[idx2], align: 'center' });
         });
         y += 20;
       }
@@ -358,12 +375,12 @@ exports.downloadOverallPDF = async (req, res) => {
 
       pdf.text(String(idx + 1), colX[0], y + 4, { width: colW[0], align: 'center' });
       pdf.text(String(r.section || '—'), colX[1], y + 4, { width: colW[1], align: 'center' });
-      pdf.text(String(r.examName || '—'), colX[2], y + 4, { width: colW[2], align: 'left', ellipsis: true });
-      pdf.text(new Date(r.examDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }), colX[3], y + 4, { width: colW[3], align: 'center' });
-      pdf.text(String(r.sessionLabel || '—'), colX[4], y + 4, { width: colW[4], align: 'center' });
-      pdf.text(String(r.rollNo || '—'), colX[5], y + 4, { width: colW[5], align: 'center' });
+      pdf.text(String(r.rollNo || '—'), colX[2], y + 4, { width: colW[2], align: 'center' });
+      pdf.text(String(r.name || '—'), colX[3], y + 4, { width: colW[3], align: 'left', ellipsis: true });
       pdf.fillColor(statusColor).font('Helvetica-Bold');
-      pdf.text(String(r.symbol || r.status), colX[6], y + 4, { width: colW[6], align: 'center' });
+      pdf.text(String(r.symbol || r.status), colX[4], y + 4, { width: colW[4], align: 'center' });
+      pdf.fillColor('#000000');
+      pdf.text(`${r.presentPercentage}%`, colX[5], y + 4, { width: colW[5], align: 'center' });
       y += 18;
     });
 
