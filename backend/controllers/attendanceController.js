@@ -322,12 +322,24 @@ exports.downloadOverallPDF = async (req, res) => {
     const commonSession = sessions[0];
     const metadataY = pdf.y;
 
+    // ── Overall year attendance percentage (top-right blue area) ────────────
+    const overallTotal    = Object.values(sectionStats).reduce((sum, s) => sum + s.total, 0);
+    const overallAttended = Object.values(sectionStats).reduce((sum, s) => sum + s.attended, 0);
+    const overallPct      = overallTotal ? ((overallAttended / overallTotal) * 100).toFixed(2) : '0.00';
+
     pdf.rect(50, metadataY, 495, 42).fillColor('#EAF2FF').fill();
     pdf.fillColor('#0D1B4B').fontSize(9).font('Helvetica-Bold');
-    pdf.text(`Exam: ${commonSession.examName || 'Internal Assessment 1'}`, 62, metadataY + 8, { width: 220 });
-    pdf.text(`Subject: ${commonSession.subject || '—'}`, 300, metadataY + 8, { width: 230 });
-    pdf.text(`Date: ${new Date(commonSession.examDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`, 62, metadataY + 25, { width: 220 });
-    pdf.text(`Session: ${commonSession.session || '—'}`, 300, metadataY + 25, { width: 230 });
+    pdf.text(`Exam: ${commonSession.examName || 'Internal Assessment 1'}`, 62, metadataY + 8, { width: 200 });
+    pdf.text(`Subject: ${commonSession.subject || '—'}`, 290, metadataY + 8, { width: 130 });
+    pdf.text(`Date: ${new Date(commonSession.examDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`, 62, metadataY + 25, { width: 200 });
+    pdf.text(`Session: ${commonSession.session || '—'}`, 290, metadataY + 25, { width: 130 });
+
+    // Highlighted overall attendance % box at the top right of the blue area
+    pdf.rect(430, metadataY + 4, 105, 34).fillColor('#1A2F7A').fill();
+    pdf.fillColor('#FFFFFF').fontSize(13).font('Helvetica-Bold');
+    pdf.text(`${overallPct}%`, 430, metadataY + 6, { width: 105, align: 'center' });
+    pdf.fontSize(6.5).font('Helvetica');
+    pdf.text(`Overall ${year} Year Attendance`, 430, metadataY + 22, { width: 105, align: 'center' });
     pdf.y = metadataY + 54;
 
     const colX = [50, 105, 145, 260, 390, 450];
