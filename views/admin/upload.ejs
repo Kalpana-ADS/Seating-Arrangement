@@ -47,10 +47,7 @@
                 <option value="IV">IV Year</option>
               </select>
             </div>
-            <div class="form-group">
-              <label>Default Section (if not in file)</label>
-              <input type="text" name="defaultSection" placeholder="e.g. A" class="form-input" value="A">
-            </div>
+
             <div class="form-group">
               <label>Select File (Excel or CSV)</label>
               <div class="file-drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
@@ -86,7 +83,7 @@
             </table>
             <div class="format-note">
               <i class="fas fa-lightbulb"></i>
-              <strong>Tip:</strong> If your file doesn't have year/section columns, set the defaults in the form. The system auto-detects column names.
+              <strong>Tip:</strong> If your file has a year column it will be used; otherwise the Default Year above is applied. Sections are read directly from your file.
             </div>
             <div class="format-note format-note--blue">
               <i class="fas fa-info-circle"></i>
