@@ -46,6 +46,7 @@ app.use('/seating',           require('./routes/seating'));
 app.use('/admin',             require('./routes/adminUsers'));
 app.use('/admin/invigilator', require('./routes/invigilator'));
 app.use('/admin/attendance',  require('./routes/attendance'));
+app.use('/admin/attendance-report', require('./routes/attendanceReport'));
 app.use('/admin/settings',    require('./routes/settings'));
 
 // ── Standalone upload page ────────────────────────────────────────────────────
@@ -116,49 +117,25 @@ const connectDB = async () => {
   const seedAtt    = require('./data/seedAttStudents');
   const seedStaff  = require('./data/seedStaff');
 
-  // ── Validate the full seed set, not just the first entry or total count ─
-  // This catches legacy records that may still be in MongoDB even when counts match.
-  const getRegisterSet = async (Model, seedRows) => {
-    const dbIds = await Model.find({}, { registerNumber: 1, _id: 0 }).lean();
-    const dbSet = new Set(
-      dbIds
-        .map(r => String(r.registerNumber || '').trim())
-        .filter(Boolean)
-    );
-    const seedSet = new Set(
-      seedRows
-        .map(r => String(r.registerNumber || r.rollNo || '').trim())
-        .filter(Boolean)
-    );
+  // Maintain uploaded year-wise datasets across app restarts.
+  // Only seed the default developer dataset when the collection is empty.
+  // This prevents refresh/restart from wiping the current uploaded dataset.
+  const bootstrapIfEmpty = async (Model, rows, label) => {
+    const count = await Model.countDocuments();
+    if (count > 0) {
+      console.log(`  ✅  ${label} already available: ${count}`);
+      return;
+    }
 
-    const missingFromDb = [...seedSet].filter(id => !dbSet.has(id));
-    const extraInDb = [...dbSet].filter(id => !seedSet.has(id));
-    return {
-      dbCount: dbSet.size,
-      seedCount: seedSet.size,
-      missingFromDb,
-      extraInDb,
-      isValid: dbSet.size === seedSet.size && missingFromDb.length === 0 && extraInDb.length === 0
-    };
+    console.log(`  ⏳  ${label} empty; loading default startup dataset…`);
+    for (let i = 0; i < rows.length; i += 200) {
+      await Model.insertMany(rows.slice(i, i + 200), { ordered: false }).catch(() => {});
+    }
+    console.log(`  ✅  ${label} loaded: ${await Model.countDocuments()}`);
   };
 
-  const studentSetStatus = await getRegisterSet(Student, seedData);
-  const dbNeedsUpdate = !studentSetStatus.isValid;
-
   // ── 2. Seating / Student data ─────────────────────────────────────────────
-  if (dbNeedsUpdate) {
-    console.log('  ⏳  Updating student data (stale or mismatched dataset detected)…');
-    if (studentSetStatus.extraInDb.length || studentSetStatus.missingFromDb.length) {
-      console.log(`     stale IDs in DB: ${studentSetStatus.extraInDb.slice(0, 10).join(', ') || 'none'}`);
-      console.log(`     missing IDs: ${studentSetStatus.missingFromDb.slice(0, 10).join(', ') || 'none'}`);
-    }
-    await Student.deleteMany({});
-    for (let i = 0; i < seedData.length; i += 200)
-      await Student.insertMany(seedData.slice(i, i+200), { ordered:false }).catch(()=>{});
-    console.log(`  ✅  Students loaded: ${await Student.countDocuments()}`);
-  } else {
-    console.log(`  ✅  Students up to date: ${await Student.countDocuments()}`);
-  }
+  await bootstrapIfEmpty(Student, seedData, 'Students');
 
   // ── 3. Staff ──────────────────────────────────────────────────────────────
   if (await Staff.countDocuments() === 0) {
@@ -170,22 +147,7 @@ const connectDB = async () => {
   }
 
   // ── 4. Attendance students ────────────────────────────────────────────────
-  const attendanceSetStatus = await getRegisterSet(AttStudent, seedAtt);
-  const attNeedsUpdate = !attendanceSetStatus.isValid;
-
-  if (attNeedsUpdate) {
-    console.log('  ⏳  Updating attendance students (stale or mismatched dataset detected)…');
-    if (attendanceSetStatus.extraInDb.length || attendanceSetStatus.missingFromDb.length) {
-      console.log(`     stale IDs in DB: ${attendanceSetStatus.extraInDb.slice(0, 10).join(', ') || 'none'}`);
-      console.log(`     missing IDs: ${attendanceSetStatus.missingFromDb.slice(0, 10).join(', ') || 'none'}`);
-    }
-    await AttStudent.deleteMany({});
-    for (let i = 0; i < seedAtt.length; i += 200)
-      await AttStudent.insertMany(seedAtt.slice(i, i+200), { ordered:false }).catch(()=>{});
-    console.log(`  ✅  Attendance students loaded: ${await AttStudent.countDocuments()}`);
-  } else {
-    console.log(`  ✅  Attendance students up to date: ${await AttStudent.countDocuments()}`);
-  }
+  await bootstrapIfEmpty(AttStudent, seedAtt, 'Attendance students');
 };
 
 connectDB();

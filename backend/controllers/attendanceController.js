@@ -295,7 +295,7 @@ exports.downloadOverallPDF = async (req, res) => {
       if (!sectionStats[section]) sectionStats[section] = { total: 0, attended: 0 };
       sectionStats[section].total += (session.records || []).length;
       sectionStats[section].attended += (session.records || [])
-        .filter(r => r.status === 'Present' || r.status === 'OD').length;
+        .filter(r => r.status !== 'Absent').length;
     });
 
     const rows = [];
